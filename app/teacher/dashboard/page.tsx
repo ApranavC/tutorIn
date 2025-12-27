@@ -266,7 +266,7 @@ export default function TeacherDashboard() {
                                                     </span>
                                                     <button onClick={() => copyInvite(cls.roomId)} className="p-2 text-gray-400 hover:text-gray-600" title="Copy Link"><Copy size={16} /></button>
                                                     <button
-                                                        onClick={() => router.push(`/class/${cls.roomId}`)}
+                                                        onClick={() => router.push(`/class/${cls.roomId}?classId=${cls.id}`)}
                                                         className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
                                                     >
                                                         Join

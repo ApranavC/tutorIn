@@ -223,19 +223,22 @@ export default function StudentDashboard() {
                                                     </span>
                                                     <button
                                                         onClick={async () => {
-                                                            try {
-                                                                const classRef = doc(db, "classes", cls.id);
-                                                                await updateDoc(classRef, {
-                                                                    attendance: arrayUnion({
-                                                                        uid: user.uid,
-                                                                        name: profile?.displayName || user.email,
-                                                                        timestamp: new Date().toISOString()
-                                                                    })
-                                                                });
-                                                            } catch (err) {
-                                                                console.error("Error logging attendance", err);
+                                                            const alreadyJoined = cls.attendance?.some((a: any) => a.uid === user.uid);
+                                                            if (!alreadyJoined) {
+                                                                try {
+                                                                    const classRef = doc(db, "classes", cls.id);
+                                                                    await updateDoc(classRef, {
+                                                                        attendance: arrayUnion({
+                                                                            uid: user.uid,
+                                                                            name: profile?.displayName || user.email,
+                                                                            timestamp: new Date().toISOString()
+                                                                        })
+                                                                    });
+                                                                } catch (err) {
+                                                                    console.error("Error logging attendance", err);
+                                                                }
                                                             }
-                                                            router.push(`/class/${cls.roomId}`);
+                                                            router.push(`/class/${cls.roomId}?classId=${cls.id}`);
                                                         }}
                                                         className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
                                                     >

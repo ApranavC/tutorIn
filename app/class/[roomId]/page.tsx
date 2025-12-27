@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { generateToken } from "../../../lib/videoService";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 export default function ClassRoom() {
     const { roomId } = useParams();
+    const searchParams = useSearchParams();
+    const classId = searchParams.get("classId");
     const { user, profile, loading } = useAuth();
     const router = useRouter();
     const [meetingUrl, setMeetingUrl] = useState("");
@@ -26,6 +28,16 @@ export default function ClassRoom() {
 
                     // Permissions & Params based on Role
                     const isTeacher = profile?.role === "teacher";
+
+                    // Determine redirect URL
+                    let redirectUrl = window.location.origin;
+                    if (classId) {
+                        if (isTeacher) {
+                            redirectUrl = `${window.location.origin}/teacher/class/${classId}/finish`;
+                        } else {
+                            redirectUrl = `${window.location.origin}/student/class/${classId}/rate`;
+                        }
+                    }
 
                     const params = new URLSearchParams({
                         name: name,
@@ -50,7 +62,7 @@ export default function ClassRoom() {
                         // UI Customization (Optional)
                         joinScreenEnabled: "true", // Let them check mic/cam before joining
                         leftScreenDisabled: "false",
-                        redirectOnLeave: window.location.origin,
+                        redirectOnLeave: redirectUrl,
                     });
 
                     const url = `https://embed.videosdk.live/rtc-js-prebuilt/0.3.43/?${params.toString()}`;
