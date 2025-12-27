@@ -23,6 +23,7 @@ interface ClassSession {
     status: 'active' | 'ended';
     createdAt: string;
     notes?: { url: string; name: string }[];
+    attendance?: { uid: string; name: string; timestamp: string }[];
 }
 
 export default function StudentDashboard() {
