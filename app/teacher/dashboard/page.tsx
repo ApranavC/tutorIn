@@ -21,7 +21,6 @@ interface ClassSession {
     id: string;
     title: string;
     roomId: string; // VideoSDK Room ID
-    status: 'active' | 'ended';
     createdAt: string;
     notes?: { url: string; name: string }[];
     attendance?: { uid: string; name: string; timestamp: string }[];

@@ -38,6 +38,7 @@ export default function ClassRoom() {
                             redirectUrl = `${window.location.origin}/student/class/${classId}/rate`;
                         }
                     }
+                    console.log("Redirect URL set to:", redirectUrl);
 
                     const params = new URLSearchParams({
                         name: name,
