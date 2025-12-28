@@ -42,6 +42,7 @@ export default function ClassRoom() {
 
                     const params = new URLSearchParams({
                         name: name,
+                        participantId: name, // User requested name to be the participantId
                         meetingId: roomId as string,
                         token: token,
                         micEnabled: isTeacher ? "true" : "false",
@@ -88,7 +89,7 @@ export default function ClassRoom() {
     if (loading || !meetingUrl) return <div className="h-screen flex items-center justify-center">Loading Class...</div>;
 
     return (
-        <div className="h-screen w-full bg-black">
+        <div className="h-[100dvh] w-full bg-black">
             <iframe
                 src={meetingUrl}
                 allow="camera; microphone; fullscreen; display-capture; clipboard-read; clipboard-write"
