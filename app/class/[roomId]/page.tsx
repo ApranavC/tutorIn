@@ -71,6 +71,7 @@ export default function ClassRoom() {
 
                         // UI Customization (Optional)
                         joinScreenEnabled: "true", // Let them check mic/cam before joining
+                        notificationSoundEnabled: "false",
                         leftScreenDisabled: "false",
                         redirectOnLeave: redirectUrl,
                     });
