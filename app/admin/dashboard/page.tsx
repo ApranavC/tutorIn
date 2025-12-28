@@ -143,6 +143,20 @@ export default function AdminDashboard() {
 
     if (loading || !profile || profile.role !== 'admin') return <div className="p-8 text-center">Loading Admin Dashboard...</div>;
 
+    const handleCleanup = async () => {
+        if (!confirm("Are you sure you want to mark ALL active classes as ended?")) return;
+        try {
+            const q = query(collection(db, "classes"), where("status", "==", "active"));
+            const snapshot = await getDocs(q);
+            const batchPromises = snapshot.docs.map(doc => updateDoc(doc.ref, { status: "ended" }));
+            await Promise.all(batchPromises);
+            toast.success(`Marked ${snapshot.size} classes as ended.`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Cleanup failed");
+        }
+    };
+
     const activeCourseData = managingCourse ? courses.find(c => c.id === managingCourse.id) || managingCourse : null;
 
     return (
@@ -154,8 +168,11 @@ export default function AdminDashboard() {
                         <div className="flex items-center">
                             <h1 className="text-xl font-bold text-indigo-600">TutorIN (Admin)</h1>
                         </div>
-                        <div className="flex items-center">
-                            <span className="mr-4 text-gray-700">{user?.email}</span>
+                        <div className="flex items-center gap-4">
+                            <button onClick={handleCleanup} className="text-sm text-red-600 hover:text-red-800 underline">
+                                Clean Up Old Classes
+                            </button>
+                            <span className="text-gray-700">{user?.email}</span>
                             <button onClick={() => signOut(auth)} className="p-2 rounded-full hover:bg-gray-100 text-gray-600">
                                 <LogOut size={20} />
                             </button>

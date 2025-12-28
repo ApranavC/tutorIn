@@ -50,9 +50,17 @@ export default function ClassRoom() {
                         participantCanToggleSelfMic: "true",
                         chatEnabled: "true",
                         raiseHandEnabled: "true",
+
+                        // Polls: Everyone sees polls, only teacher creates them
+                        pollEnabled: "true",
+                        canCreatePoll: isTeacher ? "true" : "false",
+
+                        // Layout: Only teacher can change layout
+                        canChangeLayout: isTeacher ? "true" : "false",
+                        canPin: isTeacher ? "true" : "false",
+
                         // Teacher specific
                         screenShareEnabled: isTeacher ? "true" : "false",
-                        pollEnabled: isTeacher ? "true" : "false",
                         participantCanToggleOtherWebcam: isTeacher ? "true" : "false", // Teacher can toggle others
                         participantCanToggleOtherMic: isTeacher ? "true" : "false",
                         participantCanEndMeeting: isTeacher ? "true" : "false",
