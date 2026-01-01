@@ -1,5 +1,8 @@
 
 "use client";
+import { Suspense } from "react";
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { generateToken } from "../../../lib/videoService";
@@ -7,7 +10,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { db } from "../../../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-export default function ClassRoom() {
+function ClassRoomContent() {
     const { roomId } = useParams();
     const searchParams = useSearchParams();
     const classId = searchParams.get("classId");
@@ -274,5 +277,14 @@ export default function ClassRoom() {
                 ></iframe>
             </main>
         </div>
+    );
+}
+
+// Wrap in Suspense for Next.js build requirement
+export default function ClassRoom() {
+    return (
+        <Suspense fallback={<div className="h-screen flex items-center justify-center bg-gray-950 text-white">Loading Class...</div>}>
+            <ClassRoomContent />
+        </Suspense>
     );
 }

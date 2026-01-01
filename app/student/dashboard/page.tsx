@@ -1,4 +1,6 @@
 "use client";
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -26,7 +28,10 @@ interface ClassSession {
     attendance?: { uid: string; name: string; timestamp: string }[];
 }
 
-export default function StudentDashboard() {
+import { Suspense } from "react";
+
+// Main Content Component (Client Component using useSearchParams)
+function DashboardContent() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -384,6 +389,15 @@ export default function StudentDashboard() {
                 </section>
             </main>
         </div>
+    );
+}
+
+// Wrap in Suspense for Next.js build requirement
+export default function StudentDashboard() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading Dashboard...</div>}>
+            <DashboardContent />
+        </Suspense>
     );
 }
 
