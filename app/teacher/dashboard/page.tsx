@@ -7,7 +7,7 @@ import { db, auth } from "../../../lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User, Download } from "lucide-react";
+import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Course {
     id: string;
@@ -35,6 +35,8 @@ export default function TeacherDashboard() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [classes, setClasses] = useState<ClassSession[]>([]);
+    const [activeClasses, setActiveClasses] = useState<ClassSession[]>([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Action States
     const [creatingClass, setCreatingClass] = useState(false);
@@ -66,9 +68,26 @@ export default function TeacherDashboard() {
             setCourses(data);
             // Default select first course if none selected
             if (data.length > 0 && !selectedCourse) {
-                // Don't auto-select to avoid jumping if they are browsing? 
+                // Don't auto-select to avoid jumping if they are browsing?
                 // Actually auto-select is fine for initial load
             }
+        });
+        return () => unsubscribe();
+    }, [user, selectedCourse]);
+
+    // Fetch Active Classes (Global for Teacher)
+    useEffect(() => {
+        if (!user) return;
+        const q = query(
+            collection(db, "classes"),
+            where("teacherId", "==", user.uid),
+            where("status", "==", "active")
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClassSession));
+            // Sort by most recent
+            data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setActiveClasses(data);
         });
         return () => unsubscribe();
     }, [user]);
@@ -177,20 +196,29 @@ export default function TeacherDashboard() {
                 </div>
             </nav>
 
-            <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 flex items-start gap-6">
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-start gap-6">
 
                 {/* Left Sidebar: Course List */}
-                <aside className="w-1/4 bg-white shadow rounded-lg overflow-hidden shrink-0">
-                    <div className="p-4 border-b border-gray-200">
+                <aside className="w-full md:w-1/4 bg-white shadow rounded-lg overflow-hidden shrink-0">
+                    <div
+                        className="p-4 border-b border-gray-200 flex justify-between items-center cursor-pointer md:cursor-default"
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    >
                         <h2 className="text-lg font-medium text-gray-900 flex items-center">
                             <BookOpen className="mr-2" size={20} /> My Courses
                         </h2>
+                        <div className="md:hidden text-gray-500">
+                            {isSidebarOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
                     </div>
-                    <ul className="divide-y divide-gray-200">
+                    <ul className={`divide-y divide-gray-200 ${isSidebarOpen ? 'block' : 'hidden'} md:block`}>
                         {courses.map(course => (
                             <li
                                 key={course.id}
-                                onClick={() => setSelectedCourse(course)}
+                                onClick={() => {
+                                    setSelectedCourse(course);
+                                    setIsSidebarOpen(false); // Close on mobile selection
+                                }}
                                 className={`p-4 cursor-pointer hover:bg-gray-50 ${selectedCourse?.id === course.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`}
                             >
                                 <p className="text-sm font-medium text-indigo-600">{course.code}</p>
@@ -209,19 +237,65 @@ export default function TeacherDashboard() {
                 {/* Right Content: Details & History */}
                 <section className="flex-1 space-y-6">
                     {!selectedCourse ? (
-                        <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
-                            Select a course from the left to manage it.
+                        <div className="space-y-6">
+                            <div className="bg-white shadow rounded-lg p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                    <Video className="mr-2 text-red-500" /> Live Now
+                                </h2>
+                                {activeClasses.length > 0 ? (
+                                    <ul className="divide-y divide-gray-200">
+                                        {activeClasses.map(cls => {
+                                            // Find course info if needed, though we have courseName usually
+                                            const course = courses.find(c => c.id === (cls as any).courseId);
+                                            return (
+                                                <li key={cls.id} className="py-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="text-lg font-bold text-gray-900">{cls.title}</h4>
+                                                            <p className="text-sm text-indigo-600 font-medium">{course?.name || (cls as any).courseName} ({(cls as any).courseId})</p>
+                                                            <p className="text-xs text-gray-500 flex items-center mt-1">
+                                                                <Clock size={12} className="mr-1" />
+                                                                Started at {new Date(cls.createdAt).toLocaleTimeString()}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => copyInvite(cls.roomId)}
+                                                                className="px-3 py-2 border border-gray-300 rounded text-gray-600 text-sm hover:bg-gray-50"
+                                                            >
+                                                                <Copy size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${(cls as any).courseId}`)}
+                                                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+                                                            >
+                                                                Return to Class
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+                                ) : (
+                                    <p className="text-gray-500 text-center py-8">No live classes running.</p>
+                                )}
+                            </div>
+
+                            <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
+                                Select a course from the left to manage it.
+                            </div>
                         </div>
                     ) : (
                         <>
                             {/* Course Header & Actions */}
                             <div className="bg-white shadow rounded-lg p-6">
-                                <div className="flex justify-between items-start">
-                                    <div>
+                                <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                                    <div className="w-full md:w-auto">
                                         <h2 className="text-2xl font-bold text-gray-900">{selectedCourse.name}</h2>
                                         <p className="text-gray-500">{selectedCourse.code}</p>
                                     </div>
-                                    <div className="bg-indigo-50 p-3 rounded-lg w-1/3">
+                                    <div className="bg-indigo-50 p-3 rounded-lg w-full md:w-1/3">
                                         <h3 className="text-sm font-medium text-indigo-800 mb-2">Start New Class</h3>
                                         <form onSubmit={handleCreateClass} className="flex flex-col gap-2">
                                             <input

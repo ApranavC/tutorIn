@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { db, auth } from "../../../lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { LogOut, Video, FileText, BookOpen, Clock, User } from "lucide-react";
+import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Course {
     id: string;
@@ -29,10 +29,15 @@ interface ClassSession {
 export default function StudentDashboard() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const courseIdParam = searchParams.get("courseId");
 
     const [courses, setCourses] = useState<Course[]>([]);
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [classes, setClasses] = useState<ClassSession[]>([]);
+
+    const [activeClasses, setActiveClasses] = useState<ClassSession[]>([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         if (!loading) {
@@ -63,15 +68,19 @@ export default function StudentDashboard() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
             setCourses(data);
+
             // Logic to auto-select or maintain selection
-            if (selectedCourse) {
+            if (courseIdParam && !selectedCourse) {
+                const courseToSelect = data.find(c => c.id === courseIdParam);
+                if (courseToSelect) setSelectedCourse(courseToSelect);
+            } else if (selectedCourse) {
                 // Check if still enrolled
                 const stillEnrolled = data.find(c => c.id === selectedCourse.id);
                 if (!stillEnrolled) setSelectedCourse(null);
             }
         });
         return () => unsubscribe();
-    }, [user, selectedCourse]);
+    }, [user, selectedCourse, courseIdParam]);
 
     // Fetch Classes for Selected Course
     useEffect(() => {
@@ -129,6 +138,40 @@ export default function StudentDashboard() {
         return () => unsubscribe();
     }, [selectedCourse, router]);
 
+    // Fetch All Active Classes for Enrolled Courses (Global Dashboard)
+    useEffect(() => {
+        if (selectedCourse || courses.length === 0) {
+            setActiveClasses([]);
+            return;
+        }
+
+        const courseIds = courses.map(c => c.id);
+        // Firestore 'in' query supports up to 10 values usually.
+        // For safety, let's just slice first 10 for now or chunk it if needed.
+        // Assuming user has < 10 active courses for MVP.
+        const idsToCheck = courseIds.slice(0, 10);
+
+        const q = query(
+            collection(db, "classes"),
+            where("courseId", "in", idsToCheck),
+            where("status", "==", "active")
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            } as ClassSession));
+            // Sort by creation time
+            data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setActiveClasses(data);
+        }, (error) => {
+            console.error("Firestore error fetching active classes:", error);
+        });
+
+        return () => unsubscribe();
+    }, [courses, selectedCourse]);
+
 
     if (loading || !user) return <div className="p-8 text-center">Loading...</div>;
 
@@ -160,19 +203,28 @@ export default function StudentDashboard() {
                 </div>
             </nav>
 
-            <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 flex items-start gap-6">
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-start gap-6">
                 {/* Left Sidebar: Course List */}
-                <aside className="w-1/4 bg-white shadow rounded-lg overflow-hidden shrink-0">
-                    <div className="p-4 border-b border-gray-200">
+                <aside className="w-full md:w-1/4 bg-white shadow rounded-lg overflow-hidden shrink-0">
+                    <div
+                        className="p-4 border-b border-gray-200 flex justify-between items-center cursor-pointer md:cursor-default"
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    >
                         <h2 className="text-lg font-medium text-gray-900 flex items-center">
                             <BookOpen className="mr-2" size={20} /> My Courses
                         </h2>
+                        <div className="md:hidden text-gray-500">
+                            {isSidebarOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
                     </div>
-                    <ul className="divide-y divide-gray-200">
+                    <ul className={`divide-y divide-gray-200 ${isSidebarOpen ? 'block' : 'hidden'} md:block`}>
                         {courses.map(course => (
                             <li
                                 key={course.id}
-                                onClick={() => setSelectedCourse(course)}
+                                onClick={() => {
+                                    setSelectedCourse(course);
+                                    setIsSidebarOpen(false); // Close on mobile selection
+                                }}
                                 className={`p-4 cursor-pointer hover:bg-gray-50 ${selectedCourse?.id === course.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`}
                             >
                                 <p className="text-sm font-medium text-indigo-600">{course.code}</p>
@@ -190,8 +242,63 @@ export default function StudentDashboard() {
                 {/* Right Content: Details & History */}
                 <section className="flex-1 space-y-6">
                     {!selectedCourse ? (
-                        <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
-                            Select a course to view classes and materials.
+                        <div className="space-y-6">
+                            <div className="bg-white shadow rounded-lg p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                    <Video className="mr-2 text-red-500" /> Live Now
+                                </h2>
+                                {activeClasses.length > 0 ? (
+                                    <ul className="divide-y divide-gray-200">
+                                        {activeClasses.map(cls => {
+                                            const course = courses.find(c => c.id === (cls as any).courseId);
+                                            return (
+                                                <li key={cls.id} className="py-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="text-lg font-bold text-gray-900">{cls.title}</h4>
+                                                            <p className="text-sm text-indigo-600 font-medium">{course?.name} ({course?.code})</p>
+                                                            <p className="text-xs text-gray-500 flex items-center mt-1">
+                                                                <Clock size={12} className="mr-1" />
+                                                                Started at {new Date(cls.createdAt).toLocaleTimeString()}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                const alreadyJoined = cls.attendance?.some((a: any) => a.uid === user.uid);
+                                                                if (!alreadyJoined) {
+                                                                    try {
+                                                                        const classRef = doc(db, "classes", cls.id);
+                                                                        await updateDoc(classRef, {
+                                                                            attendance: arrayUnion({
+                                                                                uid: user.uid,
+                                                                                name: profile?.displayName || user.email,
+                                                                                timestamp: new Date().toISOString()
+                                                                            })
+                                                                        });
+                                                                    } catch (err) {
+                                                                        console.error("Error logging attendance", err);
+                                                                    }
+                                                                }
+                                                                // Pass courseId so redirect works
+                                                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${(cls as any).courseId}`);
+                                                            }}
+                                                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
+                                                        >
+                                                            Join Class
+                                                        </button>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                ) : (
+                                    <p className="text-gray-500 text-center py-8">No live classes happening right now.</p>
+                                )}
+                            </div>
+
+                            <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
+                                Select a course from the sidebar to view full history and materials.
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -222,29 +329,31 @@ export default function StudentDashboard() {
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                                         {cls.status}
                                                     </span>
-                                                    <button
-                                                        onClick={async () => {
-                                                            const alreadyJoined = cls.attendance?.some((a: any) => a.uid === user.uid);
-                                                            if (!alreadyJoined) {
-                                                                try {
-                                                                    const classRef = doc(db, "classes", cls.id);
-                                                                    await updateDoc(classRef, {
-                                                                        attendance: arrayUnion({
-                                                                            uid: user.uid,
-                                                                            name: profile?.displayName || user.email,
-                                                                            timestamp: new Date().toISOString()
-                                                                        })
-                                                                    });
-                                                                } catch (err) {
-                                                                    console.error("Error logging attendance", err);
+                                                    {cls.status === 'active' && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                const alreadyJoined = cls.attendance?.some((a: any) => a.uid === user.uid);
+                                                                if (!alreadyJoined) {
+                                                                    try {
+                                                                        const classRef = doc(db, "classes", cls.id);
+                                                                        await updateDoc(classRef, {
+                                                                            attendance: arrayUnion({
+                                                                                uid: user.uid,
+                                                                                name: profile?.displayName || user.email,
+                                                                                timestamp: new Date().toISOString()
+                                                                            })
+                                                                        });
+                                                                    } catch (err) {
+                                                                        console.error("Error logging attendance", err);
+                                                                    }
                                                                 }
-                                                            }
-                                                            router.push(`/class/${cls.roomId}?classId=${cls.id}`);
-                                                        }}
-                                                        className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
-                                                    >
-                                                        {cls.status === 'active' ? <><Video size={14} className="mr-1" /> Join Live</> : "View Room"}
-                                                    </button>
+                                                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${selectedCourse?.id}`);
+                                                            }}
+                                                            className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
+                                                        >
+                                                            <><Video size={14} className="mr-1" /> Join Live</>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
 
