@@ -183,6 +183,44 @@ function ClassRoomContent() {
         }
     }, [user, profile, loading, roomId, router, classId]); // Added classId dependency
 
+    // Screen Wake Lock
+    useEffect(() => {
+        let wakeLock: any = null;
+
+        const requestWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    // Cast to any to avoid TS errors if types are missing
+                    wakeLock = await (navigator as any).wakeLock.request('screen');
+                    console.log('Wake Lock is active');
+                }
+            } catch (err: any) {
+                console.warn(`Wake Lock Error: ${err.name}, ${err.message}`);
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+        };
+
+        // Only request if class is active or loading
+        if (classStatus === "active" || classStatus === "loading") {
+            requestWakeLock();
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [classStatus]);
+
     if (loading) return <div className="h-screen flex items-center justify-center">Loading User Data...</div>;
 
     if (classStatus === "ended") {
