@@ -1,0 +1,16 @@
+{
+    "name": "TutorIN",
+    "short_name": "TutorIN",
+    "description": "Serverless Educational Calling Platform",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#4f46e5",
+    "icons": [
+        {
+            "src": "/globe.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

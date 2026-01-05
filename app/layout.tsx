@@ -18,6 +18,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TutorIN",
   description: "Serverless Educational Calling Platform",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TutorIN",
+  },
 };
 
 export const viewport: Viewport = {

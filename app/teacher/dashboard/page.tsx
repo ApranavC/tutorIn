@@ -47,6 +47,9 @@ export default function TeacherDashboard() {
     const [newNoteUrl, setNewNoteUrl] = useState("");
     const [newNoteName, setNewNoteName] = useState("");
 
+    // Sync State
+    const [syncingClassId, setSyncingClassId] = useState<string | null>(null);
+
     useEffect(() => {
         if (!loading) {
             if (!user) {
@@ -167,6 +170,28 @@ export default function TeacherDashboard() {
         const inviteLink = `${window.location.origin}/class/${roomId}`;
         navigator.clipboard.writeText(inviteLink);
         toast.success("Copied to clipboard");
+    };
+
+    const handleSyncAttendance = async (classId: string, roomId: string) => {
+        setSyncingClassId(classId);
+        try {
+            const response = await fetch("/api/sync-attendance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId, classId }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                toast.success("Attendance synced!");
+            } else {
+                toast.error("Sync failed: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to sync attendance");
+        } finally {
+            setSyncingClassId(null);
+        }
     };
 
     if (loading || !user) return <div className="p-8 text-center">Loading...</div>;
@@ -350,47 +375,72 @@ export default function TeacherDashboard() {
 
                                             {/* Attendance Section */}
                                             <div className="mt-4 mb-4 pt-4 border-t border-gray-100">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-center justify-between mb-2">
                                                     <div>
                                                         <h5 className="text-xs font-uppercase text-gray-500 font-bold">ATTENDANCE</h5>
-                                                        <span className="text-2xl font-semibold text-gray-900">{cls.attendance?.length || 0}</span> <span className="text-sm text-gray-500">Students</span>
+                                                        {(cls as any).timeline ? (
+                                                            <><span className="text-2xl font-semibold text-gray-900">{(cls as any).timeline.length}</span> <span className="text-sm text-gray-500">Video Participants</span></>
+                                                        ) : (
+                                                            <><span className="text-2xl font-semibold text-gray-900">{cls.attendance?.length || 0}</span> <span className="text-sm text-gray-500">Clicks</span></>
+                                                        )}
                                                     </div>
-                                                    {cls.attendance && cls.attendance.length > 0 && (
+                                                    <div className="flex gap-2">
                                                         <button
-                                                            onClick={() => {
-                                                                const csvContent = "data:text/csv;charset=utf-8,"
-                                                                    + "Name,ID,Join Time\n"
-                                                                    + cls.attendance?.map(a => `${a.name || "Unknown"},${a.uid},${new Date(a.timestamp).toLocaleString()}`).join("\n");
-                                                                const encodedUri = encodeURI(csvContent);
-                                                                const link = document.createElement("a");
-                                                                link.setAttribute("href", encodedUri);
-                                                                link.setAttribute("download", `attendance_${cls.title}_${new Date().toISOString().split('T')[0]}.csv`);
-                                                                document.body.appendChild(link);
-                                                                link.click();
-                                                                document.body.removeChild(link);
-                                                            }}
-                                                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                                                            onClick={() => handleSyncAttendance(cls.id, cls.roomId)}
+                                                            disabled={syncingClassId === cls.id}
+                                                            className="inline-flex items-center px-3 py-1.5 border border-indigo-600 shadow-sm text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none disabled:opacity-50"
                                                         >
-                                                            <Download size={14} className="mr-2" />
-                                                            Download CSV
+                                                            {syncingClassId === cls.id ? "Syncing..." : <><Clock size={14} className="mr-2" /> Sync Duration</>}
                                                         </button>
-                                                    )}
+                                                    </div>
                                                 </div>
 
-                                                {cls.attendance && cls.attendance.length > 0 && (
-                                                    <details className="mt-2 text-sm text-gray-500 cursor-pointer">
-                                                        <summary className="hover:text-indigo-600 focus:outline-none">View Details</summary>
-                                                        <div className="mt-2 max-h-40 overflow-y-auto bg-gray-50 rounded border border-gray-100 p-2">
-                                                            <ul className="space-y-1">
-                                                                {cls.attendance.map((att: any, idx: number) => (
-                                                                    <li key={idx} className="flex justify-between text-xs">
-                                                                        <span className="font-medium text-gray-900">{att.name}</span>
-                                                                        <span className="text-gray-400">{new Date(att.timestamp).toLocaleTimeString()}</span>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
+                                                {(cls as any).timeline && (cls as any).timeline.length > 0 ? (
+                                                    <details className="mt-2 text-sm text-gray-500 cursor-pointer" open>
+                                                        <summary className="hover:text-indigo-600 focus:outline-none font-medium mb-1">View Student Duration</summary>
+                                                        <div className="mt-2 max-h-60 overflow-y-auto bg-gray-50 rounded border border-gray-100 p-2">
+                                                            <table className="min-w-full divide-y divide-gray-200">
+                                                                <thead className="bg-gray-100">
+                                                                    <tr>
+                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Join/Leave Events</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                                    {(cls as any).timeline.map((student: any, idx: number) => (
+                                                                        <tr key={idx}>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{student.name}</td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-xs text-right text-indigo-600 font-bold">{student.duration.toFixed(1)} mins</td>
+                                                                            <td className="px-3 py-2 text-xs text-right text-gray-500">
+                                                                                {student.events.map((e: any, i: number) => (
+                                                                                    <div key={i}>
+                                                                                        {new Date(e.start).toLocaleTimeString()} - {new Date(e.end).toLocaleTimeString()}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
                                                         </div>
                                                     </details>
+                                                ) : (
+                                                    cls.attendance && cls.attendance.length > 0 && (
+                                                        <details className="mt-2 text-sm text-gray-500 cursor-pointer">
+                                                            <summary className="hover:text-indigo-600 focus:outline-none">View Simple List</summary>
+                                                            <div className="mt-2 max-h-40 overflow-y-auto bg-gray-50 rounded border border-gray-100 p-2">
+                                                                <ul className="space-y-1">
+                                                                    {cls.attendance.map((att: any, idx: number) => (
+                                                                        <li key={idx} className="flex justify-between text-xs">
+                                                                            <span className="font-medium text-gray-900">{att.name}</span>
+                                                                            <span className="text-gray-400">{new Date(att.timestamp).toLocaleTimeString()}</span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        </details>
+                                                    )
                                                 )}
                                             </div>
 
