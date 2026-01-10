@@ -37,6 +37,13 @@ export default function PWAInstallPrompt() {
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
+        // Register Service Worker
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/sw.js").catch((err) => {
+                console.error("Service Worker registration failed:", err);
+            });
+        }
+
         // For iOS, show prompt immediately if not standalone (and after a small delay)
         if (isIosDevice && !isStandaloneMode) {
             setTimeout(() => setShowPrompt(true), 2000);
