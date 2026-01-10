@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#template projects 
+/videosdk-rtc-react-native-sdk-example-main
+/mobile

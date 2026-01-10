@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "../context/AuthContext";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,6 +47,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <Toaster />
+          <PWAInstallPrompt />
         </AuthProvider>
       </body>
     </html>
