@@ -41,5 +41,4 @@ yarn-error.log*
 next-env.d.ts
 
 #template projects 
-/videosdk-rtc-react-native-sdk-example-main
-/mobile
+/videosdk-ils-react-sdk-example-main 
