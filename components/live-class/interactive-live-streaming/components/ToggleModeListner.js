@@ -19,6 +19,7 @@ const ToggleModeContainer = ({ participantId, participantMode, onPromote, raised
     mMeetingRef.current = mMeeting;
   }, [mMeeting]);
 
+  const { publish } = usePubSub(`CHANGE_MODE_${participantId}`, {});
   const { publish: publishLowerHand } = usePubSub("LOWER_HAND");
 
   if (isLocal) return null;
