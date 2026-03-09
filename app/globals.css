@@ -82,3 +82,71 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Flying Emojis Animation */
+.flying-emojis {
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.emoji {
+  position: absolute;
+  bottom: -50px;
+  font-size: 3rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wiggle-1 {
+  animation: fly-up 3.5s linear forwards, wiggle-left-right 1.2s ease-in-out infinite alternate;
+}
+
+.wiggle-2 {
+  animation: fly-up 3.5s linear forwards, wiggle-right-left 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes fly-up {
+  0% {
+    bottom: -50px;
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  80% {
+    opacity: 1;
+  }
+
+  100% {
+    bottom: 110%;
+    opacity: 0;
+  }
+}
+
+@keyframes wiggle-left-right {
+  from {
+    margin-left: -30px;
+  }
+
+  to {
+    margin-left: 30px;
+  }
+}
+
+@keyframes wiggle-right-left {
+  from {
+    margin-left: 30px;
+  }
+
+  to {
+    margin-left: -30px;
+  }
+}

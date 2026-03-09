@@ -10,22 +10,14 @@ const EMOJI_MAP = {
   heart: "❤️",
 };
 
-const FlyingEmojisOverlay = ({}) => {
-  const pubsubData = usePubSub("REACTION", {
+const FlyingEmojisOverlay = ({ }) => {
+  const { publish } = usePubSub("REACTION", {
     onMessageReceived: ({ message }) => {
       if (message) {
         handleReceiveFlyingEmoji(message);
       }
     },
   });
-
-  const pubsubDataRef = useRef(pubsubData);
-
-  useEffect(() => {
-    if (pubsubData.messages.length > 0) {
-      pubsubDataRef.current = pubsubData;
-    }
-  }, [pubsubData]);
 
   const overlayRef = useRef();
 
@@ -73,15 +65,15 @@ const FlyingEmojisOverlay = ({}) => {
       const { emoji } = e.detail;
 
       if (emoji) {
-        // pubsubDataRef.current.publish(emoji);
-        pubsubData.publish(emoji);
+        handleDisplayFlyingEmoji(emoji);
+        publish(emoji);
       }
     }
 
     window.addEventListener("reaction_added", handleSendFlyingEmoji);
     return () =>
       window.removeEventListener("reaction_added", handleSendFlyingEmoji);
-  }, [handleDisplayFlyingEmoji]);
+  }, [handleDisplayFlyingEmoji, publish]);
 
   // Remove all event listeners on unmount to prevent console warnings
   useEffect(

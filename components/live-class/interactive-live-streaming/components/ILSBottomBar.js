@@ -32,7 +32,6 @@ import PollIcon from "@/components/live-class/icons/Bottombar/PollIcon";
 import LiveIcon from "@/components/live-class/icons/LiveIcon";
 import ReactionIcon from "@/components/live-class/icons/Bottombar/ReactionIcon";
 import { sideBarModes } from "@/components/live-class/utils/common";
-import ECommerceIcon from "@/components/live-class/icons/Bottombar/ECommerceIcon";
 import { Dialog, Popover, Transition } from "@headlessui/react";
 import { useMeetingAppContext } from "@/components/live-class/MeetingAppContextDef";
 
@@ -139,8 +138,9 @@ export function ILSBottomBar({
 
     const getMics = async (mGetMics) => {
       const mics = await mGetMics();
-
-      mics && mics?.length && setMics(mics);
+      if (mics && mics.length > 0) {
+        setMics(mics);
+      }
     };
 
     const [tooltipShow, setTooltipShow] = useState(false);
@@ -276,8 +276,9 @@ export function ILSBottomBar({
 
     const getWebcams = async (mGetWebcams) => {
       const webcams = await mGetWebcams();
-
-      webcams && webcams?.length && setWebcams(webcams);
+      if (webcams && webcams.length > 0) {
+        setWebcams(webcams);
+      }
     };
 
     const [tooltipShow, setTooltipShow] = useState(false);
@@ -617,9 +618,9 @@ export function ILSBottomBar({
     ) : null;
   };
 
-  const ReactionBTN = ({ isMobile, isTab }) => {
+  const ReactionBTN = () => {
     const [btnClicked, setBtnClicked] = useState(false);
-    const { publish } = usePubSub("REACTION");
+    // const { publish } = usePubSub("REACTION");
 
     const handleOpenMenu = (event) => {
       setBtnClicked(event.currentTarget);
@@ -649,7 +650,7 @@ export function ILSBottomBar({
     return (
       <div>
         <Popover className="relative">
-          {({ open }) => (
+          {() => (
             <>
               <Popover.Button as="div">
                 <OutlinedButton
@@ -679,7 +680,6 @@ export function ILSBottomBar({
                           className="mx-2"
                           onClick={() => {
                             sendEmoji(emojiName);
-                            publish(emojiName);
                           }}
                         >
                           <p className="text-3xl">{emoji}</p>
@@ -696,33 +696,7 @@ export function ILSBottomBar({
     );
   };
 
-  const ECommerceBTN = ({ isMobile, isTab }) => {
-    return isMobile || isTab ? (
-      <MobileIconButton
-        id="ecommerce-btn"
-        tooltipTitle={"Ecommerce"}
-        buttonText={"Ecommerce"}
-        isFocused={sideBarMode === sideBarModes.ECOMMERCE}
-        Icon={ECommerceIcon}
-        onClick={() => {
-          setSideBarMode((s) =>
-            s === sideBarModes.ECOMMERCE ? null : sideBarModes.ECOMMERCE
-          );
-        }}
-      />
-    ) : (
-      <OutlinedButton
-        Icon={ECommerceIcon}
-        onClick={() => {
-          setSideBarMode((s) =>
-            s === sideBarModes.ECOMMERCE ? null : sideBarModes.ECOMMERCE
-          );
-        }}
-        isFocused={sideBarMode === sideBarModes.ECOMMERCE}
-        tooltip={"Ecommerce"}
-      />
-    );
-  };
+
 
   const MeetingIdCopyBTN = () => {
     const { meetingId } = useMeeting();
