@@ -5,7 +5,13 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { generateToken } from "../../../lib/videoService";
+// import { generateToken } from "../../../lib/videoService"; // Moved to LiveClassRoom
+import dynamic_next from 'next/dynamic';
+
+const LiveClassRoom = dynamic_next(() => import('@/components/live-class/LiveClassRoom'), {
+    ssr: false,
+    loading: () => <div className="h-screen flex items-center justify-center bg-gray-950 text-white">Loading Live Class...</div>,
+});
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { db } from "../../../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -18,7 +24,7 @@ function ClassRoomContent() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
 
-    const [meetingUrl, setMeetingUrl] = useState("");
+    // const [meetingUrl, setMeetingUrl] = useState(""); // Removed
     const [classStatus, setClassStatus] = useState<"loading" | "active" | "ended" | "not_found">("loading");
     const [classDetails, setClassDetails] = useState<any>(null);
 
@@ -69,7 +75,7 @@ function ClassRoomContent() {
 
                         if (classData.status !== "active") {
                             setClassStatus("ended");
-                            return; // Stop here, don't generate token
+                            return;
                         }
                         setClassStatus("active");
                         setClassDetails(classData);
@@ -82,106 +88,15 @@ function ClassRoomContent() {
                     console.error("Error checking class status:", err);
                 }
             } else {
-                // Fallback if no classId provided (e.g. direct link test)
-                // We allow it but warn or maybe strictly require classId?
-                // For now, let's allow it but log it.
                 console.warn("No classId provided in URL");
-                setClassStatus("active"); // Assume active if direct link for now/testing
-            }
-
-            try {
-                const token = await generateToken();
-                const name = profile?.displayName || user.email?.split("@")[0] || "User";
-
-                // Permissions & Params based on Role
-                const isTeacher = profile?.role === "teacher";
-
-
-
-                // Determine redirect URL
-                let redirectUrl = window.location.origin;
-                if (classId) {
-                    // Ensure classId is valid string
-                    if (isTeacher) {
-                        redirectUrl = `${window.location.origin}/teacher/class/${classId}/finish`;
-                    } else {
-                        redirectUrl = `${window.location.origin}/student/class/${classId}/rate`;
-                    }
-                    if (courseId) {
-                        redirectUrl += `?courseId=${courseId}`;
-                    }
-                } else {
-                    // Default fallback redirects
-                    if (isTeacher) {
-                        redirectUrl = `${window.location.origin}/teacher/dashboard`;
-                    } else {
-                        redirectUrl = `${window.location.origin}/student/dashboard`;
-                    }
-                    if (courseId) {
-                        redirectUrl += `?courseId=${courseId}`;
-                    }
-                }
-                console.log("Redirect URL set to:", redirectUrl);
-
-                const params = new URLSearchParams({
-                    name: name,
-                    participantId: name, // User requested name to be the participantId
-                    meetingId: roomId as string,
-                    token: token,
-                    micEnabled: isTeacher ? "true" : "false",
-                    webcamEnabled: isTeacher ? "true" : "false",
-                    participantCanToggleSelfWebcam: "true",
-                    participantCanToggleSelfMic: "true",
-                    chatEnabled: "true",
-                    raiseHandEnabled: "true",
-
-                    // Polls: Everyone sees polls, only teacher creates them
-                    pollEnabled: "true",
-                    canCreatePoll: isTeacher ? "true" : "false",
-
-                    // Layout: Only teacher can change layout
-                    canChangeLayout: isTeacher ? "true" : "false",
-                    canPin: isTeacher ? "true" : "false",
-
-                    // Teacher specific
-                    screenShareEnabled: isTeacher ? "true" : "false",
-                    participantCanToggleOtherWebcam: isTeacher ? "true" : "false", // Teacher can toggle others
-                    participantCanToggleOtherMic: isTeacher ? "true" : "false",
-                    participantCanEndMeeting: isTeacher ? "true" : "false",
-                    whiteboardEnabled: isTeacher ? "true" : "false",
-                    canToggleWhiteboard: isTeacher ? "true" : "false",
-                    canDrawOnWhiteboard: isTeacher ? "true" : "false",
-
-                    // Participant Control
-                    canRemoveOtherParticipant: isTeacher ? "true" : "false",
-
-                    // Video Settings (Fitting)
-                    maintainVideoAspectRatio: "true",
-                    maintainLandscapeVideoAspectRatio: "true",
-
-                    // UI Customization (Optional)
-                    joinScreenEnabled: isTeacher ? "true" : "false",
-                    joinWithoutUserInteraction: isTeacher ? "false" : "true",
-                    notificationSoundEnabled: "false",
-                    notificationAlertsEnabled: "false",
-                    leftScreenDisabled: "true",
-                    reduceEdgeSpacing: "true",
-                    brandingEnabled: "false",
-                    poweredBy: "false",
-                    redirectOnLeave: redirectUrl,
-                });
-
-                const url = `https://embed.videosdk.live/rtc-js-prebuilt/0.3.43/?${params.toString()}`;
-                setMeetingUrl(url);
-            } catch (e) {
-                console.error("Failed to generate token", e);
+                setClassStatus("active");
             }
         };
 
         if (user && !loading) {
             initMeeting();
         }
-    }, [user, profile, loading, roomId, router, classId]); // Added classId dependency
+    }, [user, profile, loading, roomId, router, classId]);
 
     // Screen Wake Lock
     useEffect(() => {
@@ -252,68 +167,17 @@ function ClassRoomContent() {
         );
     }
 
-    if (!meetingUrl) return <div className="h-screen flex items-center justify-center">Preparing Class Environment...</div>;
+    // if (!meetingUrl) return <div className="h-screen flex items-center justify-center">Preparing Class Environment...</div>;
+    // Removed waiting for meetingUrl, now checking loading states inside LiveClassRoom or here if needed.
+    // Using classStatus only.
 
     return (
-        <div className="flex flex-col landscape:flex-row h-[100dvh] w-full bg-gray-950 overflow-hidden">
-
-            {/* Left Sidebar (Landscape) / Top Bar (Portrait) 
-                In Landscape: Takes remaining space (flex-1).
-                In Portrait: Fixed height header.
-            */}
-            <aside className="
-                flex-shrink-0 
-                w-full landscape:w-12
-                bg-gray-900 border-b landscape:border-b-0 landscape:border-r border-gray-800
-                p-2 flex landscape:flex-col items-center justify-between landscape:justify-start landscape:items-center transition-all gap-4"
-            >
-                {/* Branding / Back Button */}
-                <div className="flex flex-row landscape:flex-col items-center gap-4">
-                    <button
-                        onClick={() => window.history.back()}
-                        className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-lg"
-                        title="Back to Dashboard"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
-                    </button>
-
-                    {/* Minimal Branding Icon only */}
-                    <div className="hidden landscape:flex flex-col items-center text-gray-500">
-                        <span className="font-bold text-xs tracking-widest rotate-180" style={{ writingMode: 'vertical-rl' }}>TUTORIN</span>
-                    </div>
-                </div>
-
-                {/* Mobile Portrait Header Content (Title still useful on Portrait top bar?) 
-                    User said "keep nav bar as only buttons". 
-                    In portrait it is a top bar. Let's keep title in Portrait only for context, hide in landscape.
-                */}
-                <div className="block landscape:hidden text-white font-bold text-sm truncate">
-                    {classDetails?.title}
-                </div>
-            </aside>
-
-            {/* Video Container 
-                Landscape: Height 100%, Width aspect-video (16:9). 
-                           If screen is ultra-wide layout, sidebar takes rest.
-                           If screen is 4:3 (iPad), sidebar shrinks or video shrinks?
-                           We want video to be PRIMARY fixed ratio.
-                Portrait:  Flex-1 (takes remaining height), Width 100%.
-            */}
-            <main className="
-                relative
-                w-full landscape:h-full landscape:w-auto
-                flex-1
-                bg-black shadow-2xl z-10"
-            >
-                <iframe
-                    src={meetingUrl}
-                    allow="camera; microphone; fullscreen; display-capture; clipboard-read; clipboard-write"
-                    width="100%"
-                    height="100%"
-                    className="border-0 w-full h-full"
-                    title="VideoSDK Meeting"
-                ></iframe>
-            </main>
+        <div className="flex flex-col h-[100dvh] w-full bg-gray-950 overflow-hidden">
+            <LiveClassRoom
+                roomId={roomId as string}
+                role={profile?.role || "student"}
+                participantName={profile?.displayName || user?.email?.split("@")[0] || "User"}
+            />
         </div>
     );
 }

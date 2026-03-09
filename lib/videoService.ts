@@ -1,29 +1,16 @@
 
-import { SignJWT } from "jose";
 import axios from "axios";
 
-// NOTE: In a production app, token generation should happen on the server.
-// For this "Zero-Backend" demo, we generate it here using the API Secret.
+// Token generation is handled server-side via /api/generate-token
+// to avoid crypto.subtle issues in browser (HTTP) contexts.
 export const generateToken = async (): Promise<string> => {
-    const API_KEY = process.env.NEXT_PUBLIC_VIDEOSDK_API_KEY;
-    const SECRET_KEY = process.env.NEXT_PUBLIC_VIDEOSDK_SECRET_KEY;
-
-    if (!API_KEY || !SECRET_KEY) {
-        throw new Error("VideoSDK API Key or Secret Key is missing");
+    const res = await fetch("/api/generate-token");
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to generate VideoSDK token");
     }
-
-    const secret = new TextEncoder().encode(SECRET_KEY);
-
-    const jwt = await new SignJWT({
-        apikey: API_KEY,
-        permissions: ["allow_join", "allow_mod"],
-        version: 2,
-    })
-        .setProtectedHeader({ alg: 'HS256' })
-        .setExpirationTime('120m')
-        .sign(secret);
-
-    return jwt;
+    const data = await res.json();
+    return data.token;
 };
 
 export const createRoom = async (tokenPromise: string | Promise<string>): Promise<string> => {
@@ -37,9 +24,13 @@ export const createRoom = async (tokenPromise: string | Promise<string>): Promis
             },
         });
         return response.data.roomId;
-    } catch (error: any) {
-        console.error("Error creating room:", error.response?.data || error.message);
-        throw new Error(error.response?.data?.error || "Failed to create meeting room");
+    } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+            console.error("Error creating room:", error.response?.data || error.message);
+            throw new Error(error.response?.data?.error || "Failed to create meeting room");
+        }
+        console.error("Error creating room:", error);
+        throw new Error("Failed to create meeting room");
     }
 };
 
@@ -54,7 +45,11 @@ export const fetchRecordings = async (roomId: string, tokenPromise: string | Pro
         });
         return response.data.data || []; // Ensure array
     } catch (error: any) {
-        console.error("Error fetching recordings:", error.response?.data || error.message);
+        if (axios.isAxiosError(error)) {
+            console.error("Error fetching recordings:", error.response?.data || error.message);
+        } else {
+            console.error("Error fetching recordings:", error);
+        }
         return [];
     }
 };

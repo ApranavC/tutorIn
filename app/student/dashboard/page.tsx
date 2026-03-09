@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db, auth } from "../../../lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
 import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp } from "lucide-react";
@@ -24,6 +24,7 @@ interface ClassSession {
     roomId: string; // VideoSDK Room ID
     status: 'active' | 'ended';
     createdAt: string;
+    courseId?: string;
     notes?: { url: string; name: string }[];
     attendance?: { uid: string; name: string; timestamp: string }[];
 }
@@ -90,7 +91,8 @@ function DashboardContent() {
     // Fetch Classes for Selected Course
     useEffect(() => {
         if (!selectedCourse) {
-            setClasses([]);
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            if (classes.length > 0) setClasses([]);
             return;
         }
 
@@ -146,7 +148,8 @@ function DashboardContent() {
     // Fetch All Active Classes for Enrolled Courses (Global Dashboard)
     useEffect(() => {
         if (selectedCourse || courses.length === 0) {
-            setActiveClasses([]);
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            if (activeClasses.length > 0) setActiveClasses([]);
             return;
         }
 
@@ -200,6 +203,7 @@ function DashboardContent() {
                             <button
                                 onClick={() => signOut(auth)}
                                 className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                title="Logout"
                             >
                                 <LogOut size={20} />
                             </button>
@@ -255,7 +259,7 @@ function DashboardContent() {
                                 {activeClasses.length > 0 ? (
                                     <ul className="divide-y divide-gray-200">
                                         {activeClasses.map(cls => {
-                                            const course = courses.find(c => c.id === (cls as any).courseId);
+                                            const course = courses.find(c => c.id === cls.courseId);
                                             return (
                                                 <li key={cls.id} className="py-4">
                                                     <div className="flex items-center justify-between">
@@ -269,7 +273,7 @@ function DashboardContent() {
                                                         </div>
                                                         <button
                                                             onClick={async () => {
-                                                                const alreadyJoined = cls.attendance?.some((a: any) => a.uid === user.uid);
+                                                                const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
                                                                 if (!alreadyJoined) {
                                                                     try {
                                                                         const classRef = doc(db, "classes", cls.id);
@@ -285,7 +289,7 @@ function DashboardContent() {
                                                                     }
                                                                 }
                                                                 // Pass courseId so redirect works
-                                                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${(cls as any).courseId}`);
+                                                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`);
                                                             }}
                                                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
                                                         >
@@ -337,7 +341,7 @@ function DashboardContent() {
                                                     {cls.status === 'active' && (
                                                         <button
                                                             onClick={async () => {
-                                                                const alreadyJoined = cls.attendance?.some((a: any) => a.uid === user.uid);
+                                                                const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
                                                                 if (!alreadyJoined) {
                                                                     try {
                                                                         const classRef = doc(db, "classes", cls.id);

@@ -78,6 +78,14 @@ export default function Login() {
                         </div>
                     </div>
 
+                    <div className="flex items-center justify-end">
+                        <div className="text-sm">
+                            <Link href="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
+                                Forgot your password?
+                            </Link>
+                        </div>
+                    </div>
+
                     <div>
                         <button
                             type="submit"
@@ -89,7 +97,7 @@ export default function Login() {
                     </div>
                     <div className="text-center">
                         <Link href="/signup" className="text-indigo-600 hover:text-indigo-500">
-                            Don't have an account? Sign up
+                            Don&apos;t have an account? Sign up
                         </Link>
                     </div>
                 </form>

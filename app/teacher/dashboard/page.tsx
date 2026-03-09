@@ -4,10 +4,10 @@ import { useAuth } from "../../../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { generateToken, createRoom } from "../../../lib/videoService";
 import { db, auth } from "../../../lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, addDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Course {
     id: string;
@@ -23,8 +23,11 @@ interface ClassSession {
     roomId: string; // VideoSDK Room ID
     status: 'active' | 'ended';
     createdAt: string;
+    courseId?: string;
+    courseName?: string;
     notes?: { url: string; name: string }[];
     attendance?: { uid: string; name: string; timestamp: string }[];
+    timeline?: { name: string; duration: number; events: { start: string; end: string }[] }[];
 }
 
 export default function TeacherDashboard() {
@@ -125,7 +128,7 @@ export default function TeacherDashboard() {
             const token = await generateToken();
             const roomId = await createRoom(token);
 
-            await addDoc(collection(db, "classes"), {
+            const docRef = await addDoc(collection(db, "classes"), {
                 title: newClassTitle,
                 courseId: selectedCourse.id, // Link to real course ID
                 courseName: selectedCourse.name, // Denormalize for easier display if needed
@@ -139,8 +142,8 @@ export default function TeacherDashboard() {
 
             toast.success("Class started!");
             setNewClassTitle("");
-            // Optional: Redirect to class immediately?
-            // router.push(`/class/${roomId}`);
+            // Redirect to class immediately
+            router.push(`/class/${roomId}?classId=${docRef.id}&courseId=${selectedCourse.id}`);
         } catch (error) {
             console.error(error);
             toast.error("Failed to start class");
@@ -213,7 +216,7 @@ export default function TeacherDashboard() {
                             >
                                 <User size={20} />
                             </button>
-                            <button onClick={() => signOut(auth)} className="p-2 rounded-full hover:bg-gray-100 text-gray-600">
+                            <button onClick={() => signOut(auth)} className="p-2 rounded-full hover:bg-gray-100 text-gray-600" title="Logout">
                                 <LogOut size={20} />
                             </button>
                         </div>
@@ -271,13 +274,13 @@ export default function TeacherDashboard() {
                                     <ul className="divide-y divide-gray-200">
                                         {activeClasses.map(cls => {
                                             // Find course info if needed, though we have courseName usually
-                                            const course = courses.find(c => c.id === (cls as any).courseId);
+                                            const course = courses.find(c => c.id === cls.courseId);
                                             return (
                                                 <li key={cls.id} className="py-4">
                                                     <div className="flex items-center justify-between">
                                                         <div>
                                                             <h4 className="text-lg font-bold text-gray-900">{cls.title}</h4>
-                                                            <p className="text-sm text-indigo-600 font-medium">{course?.name || (cls as any).courseName} ({(cls as any).courseId})</p>
+                                                            <p className="text-sm text-indigo-600 font-medium">{course?.name || cls.courseName} ({cls.courseId})</p>
                                                             <p className="text-xs text-gray-500 flex items-center mt-1">
                                                                 <Clock size={12} className="mr-1" />
                                                                 Started at {new Date(cls.createdAt).toLocaleTimeString()}
@@ -291,7 +294,7 @@ export default function TeacherDashboard() {
                                                                 <Copy size={16} />
                                                             </button>
                                                             <button
-                                                                onClick={() => router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${(cls as any).courseId}`)}
+                                                                onClick={() => router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`)}
                                                                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
                                                             >
                                                                 Return to Class
@@ -365,7 +368,7 @@ export default function TeacherDashboard() {
                                                     </span>
                                                     <button onClick={() => copyInvite(cls.roomId)} className="p-2 text-gray-400 hover:text-gray-600" title="Copy Link"><Copy size={16} /></button>
                                                     <button
-                                                        onClick={() => router.push(`/class/${cls.roomId}?classId=${cls.id}`)}
+                                                        onClick={() => router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`)}
                                                         className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
                                                     >
                                                         Join
@@ -378,8 +381,8 @@ export default function TeacherDashboard() {
                                                 <div className="flex items-center justify-between mb-2">
                                                     <div>
                                                         <h5 className="text-xs font-uppercase text-gray-500 font-bold">ATTENDANCE</h5>
-                                                        {(cls as any).timeline ? (
-                                                            <><span className="text-2xl font-semibold text-gray-900">{(cls as any).timeline.length}</span> <span className="text-sm text-gray-500">Video Participants</span></>
+                                                        {cls.timeline ? (
+                                                            <><span className="text-2xl font-semibold text-gray-900">{cls.timeline.length}</span> <span className="text-sm text-gray-500">Video Participants</span></>
                                                         ) : (
                                                             <><span className="text-2xl font-semibold text-gray-900">{cls.attendance?.length || 0}</span> <span className="text-sm text-gray-500">Clicks</span></>
                                                         )}
@@ -395,7 +398,7 @@ export default function TeacherDashboard() {
                                                     </div>
                                                 </div>
 
-                                                {(cls as any).timeline && (cls as any).timeline.length > 0 ? (
+                                                {cls.timeline && cls.timeline.length > 0 ? (
                                                     <details className="mt-2 text-sm text-gray-500 cursor-pointer" open>
                                                         <summary className="hover:text-indigo-600 focus:outline-none font-medium mb-1">View Student Duration</summary>
                                                         <div className="mt-2 max-h-60 overflow-y-auto bg-gray-50 rounded border border-gray-100 p-2">
@@ -408,12 +411,12 @@ export default function TeacherDashboard() {
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody className="bg-white divide-y divide-gray-200">
-                                                                    {(cls as any).timeline.map((student: any, idx: number) => (
+                                                                    {cls.timeline.map((student, idx) => (
                                                                         <tr key={idx}>
                                                                             <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{student.name}</td>
                                                                             <td className="px-3 py-2 whitespace-nowrap text-xs text-right text-indigo-600 font-bold">{student.duration.toFixed(1)} mins</td>
                                                                             <td className="px-3 py-2 text-xs text-right text-gray-500">
-                                                                                {student.events.map((e: any, i: number) => (
+                                                                                {student.events.map((e, i) => (
                                                                                     <div key={i}>
                                                                                         {new Date(e.start).toLocaleTimeString()} - {new Date(e.end).toLocaleTimeString()}
                                                                                     </div>
@@ -431,7 +434,7 @@ export default function TeacherDashboard() {
                                                             <summary className="hover:text-indigo-600 focus:outline-none">View Simple List</summary>
                                                             <div className="mt-2 max-h-40 overflow-y-auto bg-gray-50 rounded border border-gray-100 p-2">
                                                                 <ul className="space-y-1">
-                                                                    {cls.attendance.map((att: any, idx: number) => (
+                                                                    {cls.attendance.map((att, idx) => (
                                                                         <li key={idx} className="flex justify-between text-xs">
                                                                             <span className="font-medium text-gray-900">{att.name}</span>
                                                                             <span className="text-gray-400">{new Date(att.timestamp).toLocaleTimeString()}</span>
