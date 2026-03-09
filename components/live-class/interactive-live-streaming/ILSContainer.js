@@ -73,20 +73,24 @@ export function ILSContainer({
           : 240;
 
   useEffect(() => {
-    containerRef.current?.offsetHeight &&
+    if (containerRef.current?.offsetHeight) {
       setContainerHeight(containerRef.current.offsetHeight);
-    containerRef.current?.offsetWidth &&
+    }
+    if (containerRef.current?.offsetWidth) {
       setContainerWidth(containerRef.current.offsetWidth);
+    }
 
-    window.addEventListener("resize", ({ target }) => {
-      containerRef.current?.offsetHeight &&
+    window.addEventListener("resize", () => {
+      if (containerRef.current?.offsetHeight) {
         setContainerHeight(containerRef.current.offsetHeight);
-      containerRef.current?.offsetWidth &&
+      }
+      if (containerRef.current?.offsetWidth) {
         setContainerWidth(containerRef.current.offsetWidth);
+      }
     });
   }, [containerRef]);
 
-  const { participantRaisedHand } = useRaisedHandParticipants();
+  const { participantRaisedHand, participantLowerHand } = useRaisedHandParticipants();
 
   const _handleMeetingLeft = () => {
     setIsMeetingLeft(true);
@@ -137,7 +141,6 @@ export function ILSContainer({
   }
 
   async function onMeetingJoined() {
-    // console.log("onMeetingJoined");
     const {
       changeWebcam,
       changeMic,
@@ -191,11 +194,10 @@ export function ILSContainer({
     ];
 
     const isJoiningError = joiningErrCodes.findIndex((c) => c === code) !== -1;
-    const isCriticalError = `${code}`.startsWith("500");
 
     try {
       new Audio("/preview.mp3").play().catch(() => { });
-    } catch (err) { }
+    } catch { }
 
     setMeetingErrorVisible(true);
     setMeetingError({
@@ -211,6 +213,9 @@ export function ILSContainer({
     onMeetingLeft,
     onError: _handleOnError,
     onRecordingStateChanged: _handleOnRecordingStateChanged,
+    onParticipantLeft: (participant) => {
+      console.log("Participant left:", participant.displayName);
+    },
   });
 
   useEffect(() => {
@@ -229,7 +234,7 @@ export function ILSContainer({
 
       try {
         new Audio("/preview.mp3").play().catch(() => { });
-      } catch (err) { }
+      } catch { }
 
       toast(`${isLocal ? "You" : nameTructed(senderName, 15)} raised hand 🖐🏼`, {
         position: "bottom-left",
@@ -264,7 +269,7 @@ export function ILSContainer({
       if (!isLocal) {
         try {
           new Audio("/preview.mp3").play().catch(() => { });
-        } catch (err) { }
+        } catch { }
 
         toast(
           `${trimSnackBarText(
