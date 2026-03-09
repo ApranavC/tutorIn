@@ -19,30 +19,43 @@ const ToggleModeContainer = ({ participantId, participantMode, onPromote, raised
     mMeetingRef.current = mMeeting;
   }, [mMeeting]);
 
-  const { publish } = usePubSub(`CHANGE_MODE_${participantId}`, {});
+  const { publish: publishLowerHand } = usePubSub("LOWER_HAND");
 
   if (isLocal) return null;
 
   if (raisedHand && participantMode !== Constants.modes.SEND_AND_RECV) {
     return (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (typeof onPromote === "function") {
-            onPromote();
-          }
-          publish(
-            JSON.stringify({
-              mode: Constants.modes.SEND_AND_RECV,
-              skipConsent: true,
-            })
-          );
-        }}
-        className="text-white text-xs bg-green-600 px-2 py-1 rounded hover:bg-green-700 font-semibold"
-        title="Approve as Co-host"
-      >
-        Approve
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (typeof onPromote === "function") {
+              onPromote();
+            }
+            publish(
+              JSON.stringify({
+                mode: Constants.modes.SEND_AND_RECV,
+                skipConsent: true,
+              })
+            );
+            publishLowerHand(participantId);
+          }}
+          className="text-white text-[10px] bg-green-600 px-1.5 py-0.5 rounded hover:bg-green-700 font-semibold"
+          title="Approve as Co-host"
+        >
+          Approve
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            publishLowerHand(participantId);
+          }}
+          className="text-white text-[10px] bg-red-600 px-1.5 py-0.5 rounded hover:bg-red-700 font-semibold"
+          title="Reject Hand Raise"
+        >
+          Reject
+        </button>
+      </div>
     );
   }
 

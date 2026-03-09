@@ -75,7 +75,19 @@ export const MeetingAppProvider = ({ children }) => {
       };
     }, []);
 
-    return { participantRaisedHand };
+    const participantLowerHand = (participantId) => {
+      const raisedHandsParticipants = [...raisedHandsParticipantsRef.current];
+
+      const persisted = raisedHandsParticipants.filter(
+        ({ participantId: pID }) => pID !== participantId
+      );
+
+      if (raisedHandsParticipants.length !== persisted.length) {
+        setRaisedHandsParticipants(persisted);
+      }
+    };
+
+    return { participantRaisedHand, participantLowerHand };
   };
 
   return (

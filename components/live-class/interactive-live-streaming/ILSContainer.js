@@ -246,6 +246,13 @@ export function ILSContainer({
     },
   });
 
+  usePubSub("LOWER_HAND", {
+    onMessageReceived: (data) => {
+      const { message } = data;
+      participantLowerHand(message); // message is the participantId
+    },
+  });
+
   usePubSub("CHAT", {
     onMessageReceived: (data) => {
       const localParticipantId = mMeeting?.localParticipant?.id;
