@@ -30,8 +30,8 @@ function ParticipantListItem({ participantId, raisedHand, onPromote, onDemote, r
     useParticipant(participantId);
 
   return (
-    <div className="mt-2 m-2 p-2 bg-gray-700 rounded-lg mb-0">
-      <div className="flex flex-1 items-center justify-center relative">
+    <div className="mt-2 m-2 p-2 bg-gray-700 rounded-lg mb-0 border border-gray-600 shadow-sm">
+      <div className="flex flex-1 items-center relative">
         <div
           style={{
             color: "#212032",
@@ -63,7 +63,7 @@ function ParticipantListItem({ participantId, raisedHand, onPromote, onDemote, r
             {mode === Constants.modes.SEND_AND_RECV ? (
               <button
                 onClick={onDemote}
-                className="text-white text-xs bg-red-600 px-2 py-1 rounded hover:bg-red-700"
+                className="text-white text-xs bg-red-600 px-2 py-1 rounded hover:bg-red-700 font-semibold"
                 title="Remove as Co-host"
               >
                 Remove
