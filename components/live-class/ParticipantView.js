@@ -2,7 +2,6 @@ import { Popover, Transition } from "@headlessui/react";
 import { XCircleIcon } from "@heroicons/react/24/outline";
 import { Constants, useParticipant, VideoPlayer } from "@videosdk.live/react-sdk";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import ReactPlayer from "react-player";
 import { useMediaQuery } from "react-responsive";
 import useIsMobile from "@/components/live-class/hooks/useIsMobile";
 import useIsTab from "@/components/live-class/hooks/useIsTab";
@@ -197,7 +196,7 @@ export const CornerDisplayName = ({
 
   useEffect(() => {
     if (webcamStream || micStream) {
-      updateStats();
+      setTimeout(updateStats, 0);
 
       if (statsIntervalIdRef.current) {
         clearInterval(statsIntervalIdRef.current);
@@ -214,6 +213,7 @@ export const CornerDisplayName = ({
     return () => {
       if (statsIntervalIdRef.current) clearInterval(statsIntervalIdRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webcamStream, micStream]);
 
   return (
@@ -302,13 +302,13 @@ export const CornerDisplayName = ({
                           ref={setStatsBoxWidthRef}
                           style={{
                             top:
-                              coords?.top + statsBoxHeight > windowHeight
-                                ? windowHeight - statsBoxHeight - 20
-                                : coords?.top,
+                              (coords?.top || 0) + (statsBoxHeight || 0) > (windowHeight || 0)
+                                ? (windowHeight || 0) - (statsBoxHeight || 0) - 20
+                                : coords?.top || 0,
                             left:
-                              coords?.left - statsBoxWidth < 0
+                              (coords?.left || 0) - (statsBoxWidth || 0) < 0
                                 ? 12
-                                : coords?.left - statsBoxWidth,
+                                : (coords?.left || 0) - (statsBoxWidth || 0),
                           }}
                           className={`absolute`}
                         >

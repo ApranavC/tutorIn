@@ -8,7 +8,7 @@ import { db, auth } from "../../../lib/firebase";
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp } from "lucide-react";
+import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp, Sparkles, Award } from "lucide-react";
 
 interface Course {
     id: string;
@@ -44,6 +44,23 @@ function DashboardContent() {
 
     const [activeClasses, setActiveClasses] = useState<ClassSession[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Dynamic Motivational Quotes
+    const [quote, setQuote] = useState("");
+    useEffect(() => {
+        const quotes = [
+            "Success is the sum of small efforts, repeated day in and day out.",
+            "The expert in anything was once a beginner.",
+            "Believe you can and you're halfway there.",
+            "Don't watch the clock; do what it does. Keep going.",
+            "Education is the most powerful weapon which you can use to change the world.",
+            "The future belongs to those who believe in the beauty of their dreams.",
+            "It always seems impossible until it's done.",
+            "Your attitude, not your aptitude, will determine your altitude."
+        ];
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        setQuote(randomQuote);
+    }, []);
 
     useEffect(() => {
         if (!loading) {
@@ -181,28 +198,31 @@ function DashboardContent() {
     }, [courses, selectedCourse]);
 
 
-    if (loading || !user) return <div className="p-8 text-center">Loading...</div>;
+    if (loading || !user) return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 font-medium tracking-wide">Loading your dashboard...</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <nav className="bg-white shadow z-10">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
+            {/* Minimalist Top Navigation */}
+            <nav className="bg-white shadow-sm border-b border-slate-200 z-10 sticky top-0">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
-                            <h1 className="text-xl font-bold text-indigo-600">TutorIN (Student)</h1>
+                            <h1 className="text-2xl font-bold text-blue-900 tracking-tight font-serif flex items-center gap-2">
+                                <BookOpen className="text-blue-600" size={24} /> TutorIN
+                            </h1>
                         </div>
-                        <div className="flex items-center">
-                            <span className="mr-4 text-gray-700">{user.email}</span>
+                        <div className="flex items-center gap-3">
+                            <span className="hidden sm:inline text-sm font-medium text-slate-600">{user.email}</span>
                             <button
                                 onClick={() => router.push("/profile")}
-                                className="mr-2 p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
                                 title="Edit Profile"
                             >
                                 <User size={20} />
                             </button>
                             <button
                                 onClick={() => signOut(auth)}
-                                className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                className="p-2 rounded-full hover:bg-red-50 text-slate-500 hover:text-red-600 transition-colors"
                                 title="Logout"
                             >
                                 <LogOut size={20} />
@@ -212,185 +232,234 @@ function DashboardContent() {
                 </div>
             </nav>
 
-            <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-start gap-6">
-                {/* Left Sidebar: Course List */}
-                <aside className="w-full md:w-1/4 bg-white shadow rounded-lg overflow-hidden shrink-0">
-                    <div
-                        className="p-4 border-b border-gray-200 flex justify-between items-center cursor-pointer md:cursor-default"
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    >
-                        <h2 className="text-lg font-medium text-gray-900 flex items-center">
-                            <BookOpen className="mr-2" size={20} /> My Courses
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 flex flex-col gap-8 py-8">
+                
+                {/* Hero / Motivational Section */}
+                <section className="w-full bg-gradient-to-r from-blue-900 via-blue-800 to-violet-800 rounded-2xl p-8 sm:p-10 text-white shadow-xl relative overflow-hidden">
+                    <div className="relative z-10 max-w-2xl">
+                        <h2 className="text-3xl sm:text-4xl font-serif font-bold mb-3 tracking-tight">
+                            Welcome back, {profile?.displayName || user.email?.split('@')[0]}!
                         </h2>
-                        <div className="md:hidden text-gray-500">
-                            {isSidebarOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </div>
+                        <p className="text-blue-100 text-lg flex sm:items-center items-start gap-2 min-h-[28px]">
+                            <Sparkles className="text-emerald-400 shrink-0 mt-1 sm:mt-0" size={20} />
+                            <span>{quote ? `"${quote}" Let's conquer today's goals.` : "Loading inspiration..."}</span>
+                        </p>
                     </div>
-                    <ul className={`divide-y divide-gray-200 ${isSidebarOpen ? 'block' : 'hidden'} md:block`}>
-                        {courses.map(course => (
-                            <li
-                                key={course.id}
-                                onClick={() => {
-                                    setSelectedCourse(course);
-                                    setIsSidebarOpen(false); // Close on mobile selection
-                                }}
-                                className={`p-4 cursor-pointer hover:bg-gray-50 ${selectedCourse?.id === course.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`}
-                            >
-                                <p className="text-sm font-medium text-indigo-600">{course.code}</p>
-                                <p className="text-gray-900 font-semibold truncate">{course.name}</p>
-                            </li>
-                        ))}
-                        {courses.length === 0 && (
-                            <li className="p-4 text-sm text-gray-500 text-center">
-                                You are not enrolled in any courses yet.
-                            </li>
-                        )}
-                    </ul>
-                </aside>
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute bottom-0 right-1/4 mb-[-40px] w-32 h-32 bg-emerald-400 opacity-20 rounded-full blur-2xl pointer-events-none"></div>
+                </section>
 
-                {/* Right Content: Details & History */}
-                <section className="flex-1 space-y-6">
-                    {!selectedCourse ? (
-                        <div className="space-y-6">
-                            <div className="bg-white shadow rounded-lg p-6">
-                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                                    <Video className="mr-2 text-red-500" /> Live Now
-                                </h2>
-                                {activeClasses.length > 0 ? (
-                                    <ul className="divide-y divide-gray-200">
-                                        {activeClasses.map(cls => {
-                                            const course = courses.find(c => c.id === cls.courseId);
-                                            return (
-                                                <li key={cls.id} className="py-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h4 className="text-lg font-bold text-gray-900">{cls.title}</h4>
-                                                            <p className="text-sm text-indigo-600 font-medium">{course?.name} ({course?.code})</p>
-                                                            <p className="text-xs text-gray-500 flex items-center mt-1">
-                                                                <Clock size={12} className="mr-1" />
-                                                                Started at {new Date(cls.createdAt).toLocaleTimeString()}
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            onClick={async () => {
-                                                                const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
-                                                                if (!alreadyJoined) {
-                                                                    try {
-                                                                        const classRef = doc(db, "classes", cls.id);
-                                                                        await updateDoc(classRef, {
-                                                                            attendance: arrayUnion({
-                                                                                uid: user.uid,
-                                                                                name: profile?.displayName || user.email,
-                                                                                timestamp: new Date().toISOString()
-                                                                            })
-                                                                        });
-                                                                    } catch (err) {
-                                                                        console.error("Error logging attendance", err);
-                                                                    }
-                                                                }
-                                                                // Pass courseId so redirect works
-                                                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`);
-                                                            }}
-                                                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none"
-                                                        >
-                                                            Join Class
-                                                        </button>
-                                                    </div>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                ) : (
-                                    <p className="text-gray-500 text-center py-8">No live classes happening right now.</p>
-                                )}
-                            </div>
-
-                            <div className="bg-white shadow rounded-lg p-12 text-center text-gray-500">
-                                Select a course from the sidebar to view full history and materials.
+                <div className="w-full flex flex-col md:flex-row items-start gap-8">
+                    {/* Left Sidebar: Course List */}
+                    <aside className="w-full md:w-1/3 lg:w-1/4 bg-white shadow-sm border border-slate-100 rounded-xl overflow-hidden shrink-0">
+                        <div
+                            className="bg-slate-50 p-5 border-b border-slate-100 flex justify-between items-center cursor-pointer md:cursor-default"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        >
+                            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 tracking-wide uppercase">
+                                <Award className="text-violet-500" size={18} /> ENROLLED COURSES
+                            </h2>
+                            <div className="md:hidden text-slate-400">
+                                {isSidebarOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                             </div>
                         </div>
-                    ) : (
-                        <>
-                            {/* Course Header */}
-                            <div className="bg-white shadow rounded-lg p-6">
-                                <h2 className="text-2xl font-bold text-gray-900">{selectedCourse.name}</h2>
-                                <p className="text-gray-500">{selectedCourse.code}</p>
-                                <p className="text-sm text-gray-400 mt-2">Teacher ID: {selectedCourse.teacherId}</p>
-                            </div>
+                        <ul className={`divide-y divide-slate-50 ${isSidebarOpen ? 'block' : 'hidden'} md:block`}>
+                            {courses.map(course => (
+                                <li
+                                    key={course.id}
+                                    onClick={() => {
+                                        setSelectedCourse(course);
+                                        setIsSidebarOpen(false); // Close on mobile selection
+                                    }}
+                                    className={`p-4 transition-all duration-200 cursor-pointer border-l-4 ${selectedCourse?.id === course.id ? 'bg-blue-50/50 border-blue-600' : 'bg-white hover:bg-slate-50 border-transparent hover:border-slate-300'}`}
+                                >
+                                    <p className={`text-xs font-bold tracking-wider mb-1 ${selectedCourse?.id === course.id ? 'text-blue-700' : 'text-slate-500'}`}>{course.code}</p>
+                                    <p className={`font-semibold truncate ${selectedCourse?.id === course.id ? 'text-blue-900' : 'text-slate-700'}`}>{course.name}</p>
+                                </li>
+                            ))}
+                            {courses.length === 0 && (
+                                <li className="p-6 text-sm text-slate-400 text-center italic">
+                                    You are not enrolled in any courses yet.
+                                </li>
+                            )}
+                        </ul>
+                    </aside>
 
-                            {/* Class List */}
-                            <div className="bg-white shadow rounded-lg overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200">
-                                    <h3 className="text-lg font-medium text-gray-900">Class Feed</h3>
-                                </div>
-                                <ul className="divide-y divide-gray-200">
-                                    {classes.map(cls => (
-                                        <li key={cls.id} className="p-6">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div>
-                                                    <h4 className="text-lg font-bold text-gray-900">{cls.title}</h4>
-                                                    <p className="text-xs text-gray-500 flex items-center">
-                                                        <Clock size={12} className="mr-1" />
-                                                        {new Date(cls.createdAt).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                                                        {cls.status}
-                                                    </span>
-                                                    {cls.status === 'active' && (
-                                                        <button
-                                                            onClick={async () => {
-                                                                const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
-                                                                if (!alreadyJoined) {
-                                                                    try {
-                                                                        const classRef = doc(db, "classes", cls.id);
-                                                                        await updateDoc(classRef, {
-                                                                            attendance: arrayUnion({
-                                                                                uid: user.uid,
-                                                                                name: profile?.displayName || user.email,
-                                                                                timestamp: new Date().toISOString()
-                                                                            })
-                                                                        });
-                                                                    } catch (err) {
-                                                                        console.error("Error logging attendance", err);
+                    {/* Right Content: Details & History */}
+                    <section className="flex-1 w-full space-y-6">
+                        {!selectedCourse ? (
+                            <div className="space-y-6">
+                                {/* Global Live Classes (No course selected) */}
+                                <div className="bg-white shadow-sm border border-slate-100 rounded-xl p-6 sm:p-8">
+                                    <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center font-serif">
+                                        <span className="relative flex h-3 w-3 mr-3 mt-1">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                        </span>
+                                        Live Classes Happening Now
+                                    </h2>
+                                    {activeClasses.length > 0 ? (
+                                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {activeClasses.map(cls => {
+                                                const course = courses.find(c => c.id === cls.courseId);
+                                                return (
+                                                    <li key={cls.id} className="bg-slate-50 border border-slate-200 rounded-lg p-5 hover:border-blue-300 hover:shadow-md transition-all">
+                                                        <div className="flex flex-col h-full justify-between">
+                                                            <div>
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <h4 className="text-lg font-bold text-slate-800 leading-tight">{cls.title}</h4>
+                                                                    <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded tracking-widest uppercase animate-pulse">Live</span>
+                                                                </div>
+                                                                <p className="text-sm text-blue-700 font-medium mb-3">{course?.name} ({course?.code})</p>
+                                                                <p className="text-xs text-slate-500 flex items-center mb-4">
+                                                                    <Clock size={12} className="mr-1.5 opacity-70" />
+                                                                    Started at {new Date(cls.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
+                                                                    if (!alreadyJoined) {
+                                                                        try {
+                                                                            const classRef = doc(db, "classes", cls.id);
+                                                                            await updateDoc(classRef, {
+                                                                                attendance: arrayUnion({
+                                                                                    uid: user.uid,
+                                                                                    name: profile?.displayName || user.email,
+                                                                                    timestamp: new Date().toISOString()
+                                                                                })
+                                                                            });
+                                                                        } catch (err) {
+                                                                            console.error("Error logging attendance", err);
+                                                                        }
                                                                     }
-                                                                }
-                                                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${selectedCourse?.id}`);
-                                                            }}
-                                                            className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
-                                                        >
-                                                            <><Video size={14} className="mr-1" /> Join Live</>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Notes Section */}
-                                            {cls.notes && cls.notes.length > 0 && (
-                                                <div className="bg-gray-50 rounded-md p-4">
-                                                    <h5 className="text-xs font-uppercase text-gray-500 font-bold mb-2">NOTES</h5>
-                                                    <ul className="space-y-1">
-                                                        {cls.notes.map((note, i) => (
-                                                            <li key={i} className="text-sm flex items-center text-indigo-600">
-                                                                <FileText size={14} className="mr-2" />
-                                                                <a href={note.url} target="_blank" rel="noreferrer" className="underline hover:no-underline">{note.name}</a>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </li>
-                                    ))}
-
-                                    {classes.length === 0 && (
-                                        <li className="p-6 text-center text-gray-500 text-sm">No classes history for this course.</li>
+                                                                    router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`);
+                                                                }}
+                                                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all focus:ring-2 focus:ring-offset-1 focus:ring-blue-500"
+                                                            >
+                                                                <Video size={16} /> Enter Classroom
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <div className="text-center py-10 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                                            <p className="text-slate-500 font-medium">No live classes running at the moment.</p>
+                                            <p className="text-sm text-slate-400 mt-1">Take a deep breath and review your notes.</p>
+                                        </div>
                                     )}
-                                </ul>
+                                </div>
                             </div>
-                        </>
-                    )}
-                </section>
+                        ) : (
+                            <>
+                                {/* Selected Course Focus View */}
+                                <div className="bg-white shadow-sm border border-slate-100 rounded-xl p-8 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-violet-100 rounded-bl-full opacity-50 z-0 pointer-events-none"></div>
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="bg-violet-100 text-violet-700 text-xs font-bold px-2.5 py-1 rounded uppercase tracking-widest">{selectedCourse.code}</span>
+                                            <span className="text-xs text-slate-400 font-medium">Instructor: {selectedCourse.teacherId.slice(0, 8)}...</span>
+                                        </div>
+                                        <h2 className="text-3xl font-serif font-bold text-slate-800">{selectedCourse.name}</h2>
+                                    </div>
+                                </div>
+
+                                {/* Class Stream / Materials */}
+                                <div className="bg-white shadow-sm border border-slate-100 rounded-xl overflow-hidden">
+                                    <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                            <FileText className="text-blue-500" size={20} /> Course Feed
+                                        </h3>
+                                    </div>
+                                    <ul className="divide-y divide-slate-100">
+                                        {classes.map(cls => (
+                                            <li key={cls.id} className="p-8 hover:bg-slate-50/30 transition-colors">
+                                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                                                    <div>
+                                                        <h4 className="text-xl font-bold text-slate-800 mb-1">{cls.title}</h4>
+                                                        <p className="text-sm text-slate-500 flex items-center">
+                                                            <Clock size={14} className="mr-1.5 opacity-70" />
+                                                            {new Date(cls.createdAt).toLocaleString(undefined, { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 shrink-0">
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${cls.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                            {cls.status}
+                                                        </span>
+                                                        {cls.status === 'active' && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
+                                                                    if (!alreadyJoined) {
+                                                                        try {
+                                                                            const classRef = doc(db, "classes", cls.id);
+                                                                            await updateDoc(classRef, {
+                                                                                attendance: arrayUnion({
+                                                                                    uid: user.uid,
+                                                                                    name: profile?.displayName || user.email,
+                                                                                    timestamp: new Date().toISOString()
+                                                                                })
+                                                                            });
+                                                                        } catch (err) {
+                                                                            console.error("Error logging attendance", err);
+                                                                        }
+                                                                    }
+                                                                    router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${selectedCourse?.id}`);
+                                                                }}
+                                                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition"
+                                                            >
+                                                                <Video size={16} className="mr-2" /> Join Session
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Study Materials/Notes Section */}
+                                                {cls.notes && cls.notes.length > 0 && (
+                                                    <div className="mt-5 bg-blue-50/50 border border-blue-100 rounded-lg p-5">
+                                                        <h5 className="text-xs font-bold text-blue-800 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                                            <BookOpen size={14} /> Study Materials
+                                                        </h5>
+                                                        <ul className="space-y-2">
+                                                            {cls.notes.map((note, i) => (
+                                                                <li key={i} className="flex items-start">
+                                                                    <div className="bg-blue-100 p-1.5 rounded mr-3 mt-0.5 text-blue-600">
+                                                                        <FileText size={14} />
+                                                                    </div>
+                                                                    <a 
+                                                                        href={note.url} 
+                                                                        target="_blank" 
+                                                                        rel="noreferrer" 
+                                                                        className="text-sm font-medium text-slate-700 hover:text-blue-700 transition-colors py-1"
+                                                                    >
+                                                                        {note.name}
+                                                                    </a>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </li>
+                                        ))}
+
+                                        {classes.length === 0 && (
+                                            <li className="p-12 text-center">
+                                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4 text-slate-400">
+                                                    <BookOpen size={24} />
+                                                </div>
+                                                <p className="text-slate-500 font-medium">No sessions scheduled yet.</p>
+                                                <p className="text-sm text-slate-400 mt-1">Check back later or review previous coursework.</p>
+                                            </li>
+                                        )}
+                                    </ul>
+                                </div>
+                            </>
+                        )}
+                    </section>
+                </div>
             </main>
         </div>
     );

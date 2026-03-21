@@ -1,43 +1,55 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Slate-50 background for calm eye relief */
+  --background: #F8FAFC;
+  --foreground: #1e293b; /* slate-800 text */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-merriweather);
 
-  /* VideoSDK Custom Colors */
+  /* Student Study Theme */
+  --color-study-bg: #F8FAFC;          /* slate-50 */
+  --color-study-primary: #1E3A8A;     /* blue-900 */
+  --color-study-secondary: #2563EB;   /* blue-600 */
+  --color-study-accent: #10B981;      /* emerald-500 */
+  --color-study-creative: #8B5CF6;    /* violet-500 */
+  --color-study-muted: #64748B;       /* slate-500 */
+  --color-study-card: #FFFFFF;        /* white */
+
+  /* VideoSDK Custom Colors - Remapped to Studious Theme */
   --color-gray-100: #FFFFFF;
-  --color-gray-150: #3f4046;
+  --color-gray-150: #334155; /* slate-700 */
   --color-gray-200: #EFEFEF;
-  --color-gray-300: #DADADA;
-  --color-gray-400: #818181;
-  --color-gray-500: #6F767E;
-  --color-gray-600: #404B53;
-  --color-gray-650: #202427;
-  --color-gray-700: #232830;
-  --color-gray-750: #1A1C22;
-  --color-gray-800: #050A0E;
-  --color-gray-850: #26282C;
-  --color-gray-900: #95959E;
+  --color-gray-300: #CBD5E1; /* slate-300 */
+  --color-gray-400: #94A3B8; /* slate-400 */
+  --color-gray-500: #64748B; /* slate-500 */
+  --color-gray-600: #475569; /* slate-600 */
+  --color-gray-650: #334155; /* slate-700 */
+  --color-gray-700: #1E293B; /* slate-800 */
+  --color-gray-750: #1E3A8A; /* blue-900 (Deep Navy for inner cards/buttons) */
+  --color-gray-800: #0F172A; /* slate-900 (Main studio bg) */
+  --color-gray-850: #0B1120; /* slate-950 */
+  --color-gray-900: #64748B;
 
   --color-orange-250: #FF5810;
   --color-orange-350: #FF5D5D;
 
   --color-yellow-150: #FF900C;
 
-  --color-purple-300: #4658BB;
-  --color-purple-350: #5568FE;
-  --color-purple-550: #596BFF;
-  --color-purple-600: #586FEA;
-  --color-purple-650: #2B3480;
-  --color-purple-700: #4F63D2;
-  --color-purple-750: #6246FB;
+  /* Remapped Purple to Studious Violet Accent */
+  --color-purple-300: #A78BFA; /* violet-400 */
+  --color-purple-350: #8B5CF6; /* violet-500 */
+  --color-purple-550: #7C3AED; /* violet-600 */
+  --color-purple-600: #6D28D9; /* violet-700 */
+  --color-purple-650: #5B21B6; /* violet-800 */
+  --color-purple-700: #4C1D95; /* violet-900 */
+  --color-purple-750: #8B5CF6; /* violet-500 */
 
   --color-red-150: #D32F2F;
   --color-red-650: #F44339;
@@ -80,7 +92,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
 /* Flying Emojis Animation */

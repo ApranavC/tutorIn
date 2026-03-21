@@ -6,17 +6,14 @@ export function MeetingDetailsScreen({
   onClickJoin,
   _handleOnCreateMeeting,
   participantName,
-  setParticipantName,
   videoTrack,
   setVideoTrack,
   onClickStartMeeting,
   setMeetingMode,
-  meetingMode,
   meetingId,
   role,
 }) {
   const [studioCode, setStudioCode] = useState("");
-  const [studioCodeError, setStudioCodeError] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [iscreateMeetingClicked, setIscreateMeetingClicked] = useState(false);
   const [isJoinMeetingClicked, setIsJoinMeetingClicked] = useState(false);
@@ -57,37 +54,15 @@ export function MeetingDetailsScreen({
             )}
           </button>
         </div>
-      ) : isJoinMeetingClicked ? (
-        <>
-          <input
-            defaultValue={studioCode}
-            onChange={(e) => {
-              setStudioCode(e.target.value);
-            }}
-            placeholder={"Enter studio code"}
-            className="px-4 py-3 bg-gray-650 rounded-xl text-white w-full text-center"
-          />
-          {studioCodeError && (
-            <p className="text-xs text-red-600">
-              Please enter valid studioCode
-            </p>
-          )}
-        </>
       ) : null}
 
       {(iscreateMeetingClicked || isJoinMeetingClicked) && (
         <>
-          <input
-            value={participantName}
-            onChange={(e) => setParticipantName(e.target.value)}
-            placeholder="Enter your name"
-            className="px-4 py-3 mt-5 bg-gray-650 rounded-xl text-white w-full text-center"
-          />
           <button
             disabled={participantName.length < 3}
             className={`w-full ${participantName.length < 3 ? "bg-gray-650" : "bg-purple-350"
               }  text-white px-2 py-3 rounded-xl mt-5`}
-            onClick={(e) => {
+            onClick={() => {
               if (iscreateMeetingClicked) {
                 if (videoTrack) {
                   videoTrack.stop();
@@ -97,16 +72,13 @@ export function MeetingDetailsScreen({
               } else {
                 if (studioCode && studioCode.length > 5) {
                   onClickJoin(studioCode);
-                } else setStudioCodeError(true);
+                }
               }
             }}
           >
             {iscreateMeetingClicked
-              ? "Start a meeting"
-              : isJoinMeetingClicked &&
-                meetingMode === Constants.modes.SEND_AND_RECV
-                ? "Join Studio"
-                : "Join Streaming Room"}
+              ? "Start Class"
+              : "Join Class"}
           </button>
         </>
       )}
@@ -116,7 +88,7 @@ export function MeetingDetailsScreen({
           <div className="flex items-center justify-center flex-col w-full">
             <button
               className="w-full bg-purple-350 text-white px-2 py-3 rounded-xl"
-              onClick={async (e) => {
+              onClick={async () => {
                 const studioCode = await _handleOnCreateMeeting();
                 setStudioCode(studioCode);
                 setIscreateMeetingClicked(true);
@@ -128,7 +100,7 @@ export function MeetingDetailsScreen({
 
             <button
               className="w-full bg-purple-350 text-white px-2 py-3 mt-5 rounded-xl"
-              onClick={async (e) => {
+              onClick={async () => {
                 setIsJoinMeetingClicked(true);
                 setMeetingMode(Constants.modes.SEND_AND_RECV);
               }}
@@ -137,7 +109,7 @@ export function MeetingDetailsScreen({
             </button>
             <button
               className="w-full bg-gray-650 text-white px-2 py-3 rounded-xl mt-5"
-              onClick={(e) => {
+              onClick={() => {
                 setIsJoinMeetingClicked(true);
                 setMeetingMode(Constants.modes.RECV_ONLY);
               }}

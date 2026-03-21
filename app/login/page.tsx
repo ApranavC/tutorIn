@@ -16,10 +16,17 @@ export default function Login() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        const safeEmail = email.trim();
+        if (!safeEmail) {
+            toast.error("Please enter a valid email address");
+            return;
+        }
+
         setLoading(true);
 
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, safeEmail, password);
             const user = userCredential.user;
 
             // Check role
