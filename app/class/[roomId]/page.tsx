@@ -175,6 +175,7 @@ function ClassRoomContent() {
         <div className="flex flex-col h-[100dvh] w-full bg-gray-950 overflow-hidden">
             <LiveClassRoom
                 roomId={roomId as string}
+                classId={classId || ""}
                 role={profile?.role || "student"}
                 participantName={profile?.displayName || user?.email?.split("@")[0] || "User"}
             />

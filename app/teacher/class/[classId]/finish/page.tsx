@@ -68,7 +68,7 @@ export default function FinishClass() {
                                 </div>
                                 <input
                                     type="url"
-                                    className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2 border"
+                                    className="focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 block w-full pl-10 sm:text-sm border-gray-300 rounded-md p-2 border"
                                     placeholder="https://"
                                     value={notesUrl}
                                     onChange={(e) => setNotesUrl(e.target.value)}
@@ -83,7 +83,7 @@ export default function FinishClass() {
                                 </label>
                                 <input
                                     type="text"
-                                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
                                     placeholder="e.g. Chapter 4 Summary"
                                     value={notesName}
                                     onChange={(e) => setNotesName(e.target.value)}

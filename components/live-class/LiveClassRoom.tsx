@@ -10,11 +10,12 @@ import toast from "react-hot-toast";
 
 interface LiveClassRoomProps {
     roomId: string;
+    classId?: string;
     role: "teacher" | "student";
     participantName: string;
 }
 
-export default function LiveClassRoom({ roomId, role, participantName: initialParticipantName }: LiveClassRoomProps) {
+export default function LiveClassRoom({ roomId, classId, role, participantName: initialParticipantName }: LiveClassRoomProps) {
     const [participantName, setParticipantName] = useState(initialParticipantName);
     const [token, setToken] = useState("");
     const [meetingId, setMeetingId] = useState(roomId);
@@ -110,7 +111,7 @@ export default function LiveClassRoom({ roomId, role, participantName: initialPa
                                     if ([1006, 1008, 1009].includes(code)) {
                                         // Class ended. Teachers go to notes form, students see LeaveScreen.
                                         if (role === "teacher") {
-                                            router.push(`/teacher/class/${meetingId || roomId}/finish`);
+                                            router.push(`/teacher/class/${classId || meetingId || roomId}/finish`);
                                         }
                                     } else if (code === 1101) {
                                         // "throw user to the home page from which he can rejoin"
