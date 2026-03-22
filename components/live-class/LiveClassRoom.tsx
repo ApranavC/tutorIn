@@ -99,8 +99,6 @@ export default function LiveClassRoom({ roomId, role, participantName: initialPa
                     >
                         <ILSContainer
                             onMeetingLeave={(reason: { code: number; message: string }) => {
-                                setToken("");
-                                setMeetingId("");
                                 setWebcamOn(false);
                                 setMicOn(false);
                                 setMeetingStarted(false);
