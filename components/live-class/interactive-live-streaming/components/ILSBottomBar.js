@@ -25,8 +25,9 @@ import EndIcon from "@/components/live-class/icons/Bottombar/EndIcon";
 import RaiseHandIcon from "@/components/live-class/icons/Bottombar/RaiseHandIcon";
 import { OutlinedButton } from "@/components/live-class/buttons/OutlinedButton";
 import { createPopper } from "@popperjs/core";
-import useIsTab from "@/components/live-class/hooks/useIsTab";
-import useIsMobile from "@/components/live-class/hooks/useIsMobile";
+import useIsTab from "../../hooks/useIsTab";
+import useIsMobile from "../../hooks/useIsMobile";
+import ConfirmBox from "../../ConfirmBox";
 import { MobileIconButton } from "@/components/live-class/buttons/MobileIconButton";
 import PollIcon from "@/components/live-class/icons/Bottombar/PollIcon";
 import LiveIcon from "@/components/live-class/icons/LiveIcon";
@@ -476,18 +477,42 @@ export function ILSBottomBar({
   };
 
   const LeaveBTN = () => {
-    const { leave } = useMeeting();
+    const { leave, end } = useMeeting();
+    const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
 
     return (
-      <OutlinedButton
-        Icon={EndIcon}
-        bgColor="bg-red-150"
-        onClick={() => {
-          leave();
-          setIsMeetingLeft(true);
-        }}
-        tooltip="Leave Meeting"
-      />
+      <>
+        <OutlinedButton
+          Icon={EndIcon}
+          bgColor="bg-red-150"
+          onClick={() => {
+            if (role === "teacher") {
+              setIsLeaveModalOpen(true);
+            } else {
+              leave();
+              setIsMeetingLeft(true);
+            }
+          }}
+          tooltip="Leave Meeting"
+        />
+        <ConfirmBox
+          open={isLeaveModalOpen}
+          successText="End Class for All"
+          rejectText="Leave Only"
+          onSuccess={() => {
+            end();
+            setIsLeaveModalOpen(false);
+          }}
+          onReject={() => {
+            leave();
+            setIsMeetingLeft(true);
+            setIsLeaveModalOpen(false);
+          }}
+          title="End or Leave Class?"
+          subTitle="Ending the class will kick all students out and conclude the session. Leaving will let you rejoin later while students remain."
+          subTitleColor="#E5E7EB"
+        />
+      </>
     );
   };
 

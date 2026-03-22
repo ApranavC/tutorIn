@@ -110,7 +110,10 @@ export default function LiveClassRoom({ roomId, role, participantName: initialPa
                                 if (reason && reason.code) {
                                     const code = reason.code;
                                     if ([1006, 1008, 1009].includes(code)) {
-                                        // "show class is ended" handled by LeaveScreen
+                                        // Class ended. Teachers go to notes form, students see LeaveScreen.
+                                        if (role === "teacher") {
+                                            router.push(`/teacher/class/${meetingId || roomId}/finish`);
+                                        }
                                     } else if (code === 1101) {
                                         // "throw user to the home page from which he can rejoin"
                                         const dashUrl = role === "teacher" ? "/teacher/dashboard" : "/student/dashboard";
