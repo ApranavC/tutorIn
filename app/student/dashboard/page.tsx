@@ -5,10 +5,10 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db, auth } from "../../../lib/firebase";
-import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, addDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp, Sparkles, Award } from "lucide-react";
+import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp, Sparkles, Award, MessageCircleQuestion, Send } from "lucide-react";
 
 interface Course {
     id: string;
@@ -29,6 +29,20 @@ interface ClassSession {
     attendance?: { uid: string; name: string; timestamp: string }[];
 }
 
+interface Doubt {
+    id: string;
+    studentId: string;
+    studentName: string;
+    teacherId: string;
+    courseId: string;
+    courseName: string;
+    text: string;
+    replyText?: string;
+    status: 'pending' | 'resolved';
+    createdAt: string;
+    dateAsked: string;
+}
+
 import { Suspense } from "react";
 
 // Main Content Component (Client Component using useSearchParams)
@@ -44,6 +58,77 @@ function DashboardContent() {
 
     const [activeClasses, setActiveClasses] = useState<ClassSession[]>([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Doubts State
+    const [doubts, setDoubts] = useState<Doubt[]>([]);
+    const [dailyDoubtCount, setDailyDoubtCount] = useState(0);
+    const [doubtText, setDoubtText] = useState("");
+    const [submittingDoubt, setSubmittingDoubt] = useState(false);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Fetch daily doubts for limit check
+    useEffect(() => {
+        if (!user) return;
+        const q = query(
+            collection(db, "doubts"),
+            where("studentId", "==", user.uid),
+            where("dateAsked", "==", todayStr)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setDailyDoubtCount(snapshot.docs.length);
+        });
+        return () => unsubscribe();
+    }, [user, todayStr]);
+
+    // Fetch doubts for selected course
+    useEffect(() => {
+        if (!selectedCourse || !user) {
+            setDoubts([]);
+            return;
+        }
+        const q = query(
+            collection(db, "doubts"),
+            where("courseId", "==", selectedCourse.id),
+            where("studentId", "==", user.uid)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doubt));
+            data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setDoubts(data);
+        });
+        return () => unsubscribe();
+    }, [selectedCourse, user]);
+
+    const handleAskDoubt = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!doubtText.trim() || !selectedCourse || !user) return;
+        if (dailyDoubtCount >= 1) {
+            toast.error("You have already asked a doubt today.");
+            return;
+        }
+
+        setSubmittingDoubt(true);
+        try {
+            await addDoc(collection(db, "doubts"), {
+                studentId: user.uid,
+                studentName: profile?.displayName || user.email?.split('@')[0],
+                teacherId: selectedCourse.teacherId,
+                courseId: selectedCourse.id,
+                courseName: selectedCourse.name,
+                text: doubtText.trim(),
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+                dateAsked: todayStr
+            });
+            setDoubtText("");
+            toast.success("Doubt submitted successfully!");
+        } catch (error) {
+            console.error("Error submitting doubt", error);
+            toast.error("Failed to submit doubt.");
+        } finally {
+            setSubmittingDoubt(false);
+        }
+    };
 
     // Dynamic Motivational Quotes
     const [quote, setQuote] = useState("");
@@ -455,6 +540,68 @@ function DashboardContent() {
                                             </li>
                                         )}
                                     </ul>
+                                </div>
+
+                                {/* Doubt Solving Widget */}
+                                <div className="mt-6 bg-white shadow-sm border border-slate-100 rounded-xl overflow-hidden">
+                                    <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                            <MessageCircleQuestion className="text-blue-500" size={20} /> Ask Your Teacher
+                                        </h3>
+                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${dailyDoubtCount >= 1 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                            {dailyDoubtCount >= 1 ? 'Daily Limit Reached' : '1 Doubt Remaining Today'}
+                                        </span>
+                                    </div>
+                                    <div className="p-8">
+                                        <form onSubmit={handleAskDoubt} className="mb-6 relative">
+                                            <textarea
+                                                className={`w-full border border-slate-300 rounded-xl shadow-sm p-4 text-sm resize-none focus:ring-blue-500 focus:border-blue-500 bg-slate-50 outline-none transition-shadow ${dailyDoubtCount >= 1 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                rows={3}
+                                                placeholder={dailyDoubtCount >= 1 ? "You've asked your daily doubt! Check back tomorrow." : "Describe your doubt clearly..."}
+                                                value={doubtText}
+                                                onChange={(e) => setDoubtText(e.target.value)}
+                                                disabled={submittingDoubt || dailyDoubtCount >= 1}
+                                                required
+                                            ></textarea>
+                                            <button
+                                                type="submit"
+                                                aria-label="Submit Doubt"
+                                                disabled={submittingDoubt || !doubtText.trim() || dailyDoubtCount >= 1}
+                                                className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                                            >
+                                                <Send size={16} />
+                                            </button>
+                                        </form>
+
+                                        {doubts.length > 0 && (
+                                            <div className="space-y-4">
+                                                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">Your Past Doubts</h4>
+                                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                                    {doubts.map(doubt => (
+                                                        <div key={doubt.id} className={`p-4 rounded-xl border ${doubt.status === 'resolved' ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50/50 border-slate-100'}`}>
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${doubt.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                    {doubt.status}
+                                                                </span>
+                                                                <span className="text-xs text-slate-400 font-medium">
+                                                                    {new Date(doubt.createdAt).toLocaleDateString()}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-700 font-medium mb-2">{doubt.text}</p>
+                                                            {doubt.replyText && (
+                                                                <div className="mt-3 pt-3 border-t border-emerald-100/50">
+                                                                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                                        <User size={12} /> Teacher&apos;s Reply
+                                                                    </p>
+                                                                    <p className="text-sm text-slate-600 italic">&quot;{doubt.replyText}&quot;</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </>
                         )}

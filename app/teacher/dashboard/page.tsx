@@ -7,7 +7,7 @@ import { db, auth } from "../../../lib/firebase";
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, addDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User } from "lucide-react";
+import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User, MessageCircleQuestion, Send, CheckCircle2 } from "lucide-react";
 
 interface Course {
     id: string;
@@ -28,6 +28,20 @@ interface ClassSession {
     notes?: { url: string; name: string }[];
     attendance?: { uid: string; name: string; timestamp: string }[];
     timeline?: { name: string; duration: number; events: { start: string; end: string }[] }[];
+}
+
+interface Doubt {
+    id: string;
+    studentId: string;
+    studentName: string;
+    teacherId: string;
+    courseId: string;
+    courseName: string;
+    text: string;
+    replyText?: string;
+    status: 'pending' | 'resolved';
+    createdAt: string;
+    dateAsked: string;
 }
 
 export default function TeacherDashboard() {
@@ -51,6 +65,12 @@ export default function TeacherDashboard() {
 
     // Sync State
     const [syncingClassId, setSyncingClassId] = useState<string | null>(null);
+
+    // Doubt State
+    const [courseDoubts, setCourseDoubts] = useState<Doubt[]>([]);
+    const [replyingToDoubtId, setReplyingToDoubtId] = useState<string | null>(null);
+    const [replyText, setReplyText] = useState("");
+    const [submittingReply, setSubmittingReply] = useState(false);
 
     useEffect(() => {
         if (!loading) {
@@ -117,6 +137,47 @@ export default function TeacherDashboard() {
         return () => unsubscribe();
     }, [selectedCourse]);
 
+    // Fetch Doubts for Selected Course
+    useEffect(() => {
+        if (!selectedCourse || !user) {
+            setCourseDoubts([]);
+            return;
+        }
+
+        const q = query(
+            collection(db, "doubts"),
+            where("courseId", "==", selectedCourse.id),
+            where("teacherId", "==", user.uid)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doubt));
+            data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setCourseDoubts(data);
+        });
+
+        return () => unsubscribe();
+    }, [selectedCourse, user]);
+
+    const handleResolveDoubt = async (doubtId: string) => {
+        if (!replyText.trim()) return;
+        setSubmittingReply(true);
+        try {
+            const doubtRef = doc(db, "doubts", doubtId);
+            await updateDoc(doubtRef, {
+                replyText: replyText.trim(),
+                status: 'resolved'
+            });
+            setReplyingToDoubtId(null);
+            setReplyText("");
+            toast.success("Doubt resolved successfully!");
+        } catch (error) {
+            console.error("Error resolving doubt", error);
+            toast.error("Failed to resolve doubt.");
+        } finally {
+            setSubmittingReply(false);
+        }
+    };
 
     const handleCreateClass = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -350,6 +411,88 @@ export default function TeacherDashboard() {
                                 </form>
                             </div>
                         </div>
+
+                        {/* Student Doubts Panel */}
+                        {courseDoubts.length > 0 && (
+                            <div className="bg-white shadow-sm rounded-2xl border border-slate-200 overflow-hidden">
+                                <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                        <MessageCircleQuestion className="text-blue-600" size={20} /> Student Questions
+                                    </h3>
+                                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 uppercase tracking-wider">
+                                        {courseDoubts.filter(d => d.status === 'pending').length} Pending
+                                    </span>
+                                </div>
+                                <ul className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                                    {courseDoubts.map(doubt => (
+                                        <li key={doubt.id} className={`p-6 hover:bg-slate-50/50 transition-colors ${doubt.status === 'resolved' ? 'opacity-80' : ''}`}>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-700">{doubt.studentName}</span>
+                                                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                                                        {new Date(doubt.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${doubt.status === 'resolved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {doubt.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-slate-800 font-medium mb-4 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">{doubt.text}</p>
+                                            
+                                            {doubt.status === 'pending' ? (
+                                                <div className="ml-4 pl-4 border-l-2 border-blue-100">
+                                                    {replyingToDoubtId === doubt.id ? (
+                                                        <div className="flex flex-col gap-3">
+                                                            <textarea
+                                                                className="w-full text-sm font-medium p-3 border border-slate-300 shadow-sm rounded-lg text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                                                rows={2}
+                                                                placeholder="Type your reply to the student..."
+                                                                value={replyText}
+                                                                onChange={(e) => setReplyText(e.target.value)}
+                                                                disabled={submittingReply}
+                                                                autoFocus
+                                                            ></textarea>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleResolveDoubt(doubt.id)}
+                                                                    disabled={submittingReply || !replyText.trim()}
+                                                                    className="text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                                                                >
+                                                                    <Send size={14} /> Send Reply
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setReplyingToDoubtId(null)}
+                                                                    className="text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <button 
+                                                            onClick={() => {
+                                                                setReplyingToDoubtId(doubt.id);
+                                                                setReplyText("");
+                                                            }}
+                                                            className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1.5"
+                                                        >
+                                                            <MessageCircleQuestion size={16} /> Write a Reply
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="ml-4 pl-4 border-l-2 border-emerald-100">
+                                                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                        <CheckCircle2 size={12} /> Your Reply
+                                                    </p>
+                                                    <p className="text-sm text-slate-600 italic">&quot;{doubt.replyText}&quot;</p>
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
 
                         {/* Class History */}
                         <div className="bg-white shadow-sm rounded-2xl border border-slate-200 overflow-hidden">
