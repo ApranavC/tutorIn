@@ -153,30 +153,26 @@ export function ILSContainer({
     if (localParticipant.mode !== Constants.modes.SEND_AND_RECV) return;
 
     if (webcamEnabled && selectedWebcam.id) {
-      await new Promise((resolve) => {
-        disableWebcam();
-        setTimeout(async () => {
-          const track = await createCameraVideoTrack({
-            optimizationMode: "motion",
-            encoderConfig: "h540p_w960p",
-            facingMode: "environment",
-            cameraId: selectedWebcam.id,
-            multiStream: false,
-          });
-          changeWebcam(track);
-          resolve();
-        }, 500);
-      });
+      try {
+        const track = await createCameraVideoTrack({
+          optimizationMode: "motion",
+          encoderConfig: "h540p_w960p",
+          facingMode: "environment",
+          cameraId: selectedWebcam.id,
+          multiStream: false,
+        });
+        changeWebcam(track);
+      } catch (err) {
+        console.error("Failed to swap to selected webcam", err);
+      }
     }
 
     if (micEnabled && selectedMic.id) {
-      await new Promise((resolve) => {
-        muteMic();
-        setTimeout(() => {
-          changeMic(selectedMic.id);
-          resolve();
-        }, 500);
-      });
+      try {
+        changeMic(selectedMic.id);
+      } catch (err) {
+        console.error("Failed to swap to selected mic", err);
+      }
     }
   }
   function onMeetingLeft(reason) {
