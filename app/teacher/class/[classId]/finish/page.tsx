@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../../../lib/firebase";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, collection, query, where, getDocs } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { FileText, CheckCircle } from "lucide-react";
 
@@ -19,7 +19,21 @@ export default function FinishClass() {
 
         setLoading(true);
         try {
-            const classRef = doc(db, "classes", classId as string);
+            let classRef = doc(db, "classes", classId as string);
+
+            // If the ID contains hyphens, it's likely the VideoSDK roomId (e.g. xxxx-xxxx-xxxx).
+            // We need to query Firebase for the actual document ID to prevent 'No document' errors.
+            if ((classId as string).includes("-")) {
+                const q = query(collection(db, "classes"), where("roomId", "==", classId));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    classRef = doc(db, "classes", querySnapshot.docs[0].id);
+                } else {
+                    toast.error("Could not find internal database record for this session.");
+                    setLoading(false);
+                    return;
+                }
+            }
 
             const updates: any = {
                 status: 'ended'

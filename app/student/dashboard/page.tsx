@@ -229,7 +229,7 @@ function DashboardContent() {
                             });
                             n.onclick = () => {
                                 window.focus();
-                                router.push(`/class/${cls.roomId}`);
+                                router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`);
                             };
                         }
                         toast(`New class active: ${cls.title}`, { icon: '🔔' });
