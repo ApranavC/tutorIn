@@ -20,6 +20,7 @@ import { useMediaQuery } from "react-responsive";
 import { toast } from "react-toastify";
 import { useMeetingAppContext } from "@/components/live-class/MeetingAppContextDef";
 import ModeListner from "./components/ModeListner";
+import FloatingChatOverlay from "../sidebar/FloatingChatOverlay";
 
 export function ILSContainer({
   onMeetingLeave,
@@ -123,7 +124,7 @@ export function ILSContainer({
 
   function onParticipantJoined(participant) {
     // Change quality to low, med or high based on resolution
-    participant && participant.setQuality("high");
+    if (participant) participant.setQuality("high");
   }
 
   function onEntryResponded(participantId, name) {
@@ -144,8 +145,6 @@ export function ILSContainer({
     const {
       changeWebcam,
       changeMic,
-      muteMic,
-      disableWebcam,
       localParticipant,
     } = mMeetingRef.current;
 
@@ -222,26 +221,25 @@ export function ILSContainer({
 
   usePubSub("RAISE_HAND", {
     onMessageReceived: (data) => {
-      const localParticipantId = mMeeting?.localParticipant?.id;
-
       const { senderId, senderName } = data;
 
-      const isLocal = senderId === localParticipantId;
+      // Play hand raise sound and show notification only for the tutor
+      if (role === "teacher") {
+        try {
+          new Audio("/handraise.mp3").play().catch(() => { });
+        } catch { }
 
-      try {
-        new Audio("/preview.mp3").play().catch(() => { });
-      } catch { }
-
-      toast(`${isLocal ? "You" : nameTructed(senderName, 15)} raised hand 🖐🏼`, {
-        position: "bottom-left",
-        autoClose: 4000,
-        hideProgressBar: true,
-        closeButton: false,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+        toast(`${nameTructed(senderName, 15)} raised hand 🖐🏼`, {
+          position: "bottom-left",
+          autoClose: 4000,
+          hideProgressBar: true,
+          closeButton: false,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+        });
+      }
 
       participantRaisedHand(senderId);
     },
@@ -262,9 +260,9 @@ export function ILSContainer({
 
       const isLocal = senderId === localParticipantId;
 
-      if (!isLocal) {
+      if (!isLocal && role === "teacher") {
         try {
-          new Audio("/preview.mp3").play().catch(() => { });
+          new Audio("/msg.mp3").play().catch(() => { });
         } catch { }
 
         toast(
@@ -299,10 +297,9 @@ export function ILSContainer({
               />
               <PollsListner />
 
-              <PollsListner />
-
               <div className={` flex flex-1 flex-row bg-gray-800 min-h-0 `}>
-                <div className={`flex flex-1 min-h-0 `}>
+                {/* Video area — relative so FloatingChatOverlay can sit inside it */}
+                <div className={`flex flex-1 min-h-0 relative`}>
                   {isPresenting ? (
                     <PresenterView
                       height={containerHeight - bottomBarHeight}
@@ -311,8 +308,11 @@ export function ILSContainer({
                   {isPresenting && isMobile ? null : (
                     <MemorizedILSParticipantView isPresenting={isPresenting} />
                   )}
+                  {/* Floating chat overlay — sits on top of video, bottom-left */}
+                  <FloatingChatOverlay />
                 </div>
 
+                {/* Sidebar for polls & participants only */}
                 <SidebarConatiner
                   height={containerHeight - bottomBarHeight}
                   sideBarContainerWidth={sideBarContainerWidth}

@@ -1,6 +1,5 @@
 import { useMeeting, useParticipant, VideoPlayer } from "@videosdk.live/react-sdk";
-import { useEffect, useMemo, useRef } from "react";
-import ReactPlayer from "react-player";
+import { useEffect, useRef } from "react";
 import MicOffSmallIcon from "@/components/live-class/icons/MicOffSmallIcon";
 import ScreenShareIcon from "@/components/live-class/icons/ScreenShareIcon";
 import SpeakerIcon from "@/components/live-class/icons/SpeakerIcon";

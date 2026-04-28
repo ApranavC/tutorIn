@@ -8,41 +8,8 @@ import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, addDo
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
 import { Copy, Plus, Video, LogOut, FileText, BookOpen, Clock, User, MessageCircleQuestion, Send, CheckCircle2 } from "lucide-react";
-
-interface Course {
-    id: string;
-    name: string;
-    code: string;
-    teacherId: string;
-    studentIds: string[];
-}
-
-interface ClassSession {
-    id: string;
-    title: string;
-    roomId: string; // VideoSDK Room ID
-    status: 'active' | 'ended';
-    createdAt: string;
-    courseId?: string;
-    courseName?: string;
-    notes?: { url: string; name: string }[];
-    attendance?: { uid: string; name: string; timestamp: string }[];
-    timeline?: { name: string; duration: number; events: { start: string; end: string }[] }[];
-}
-
-interface Doubt {
-    id: string;
-    studentId: string;
-    studentName: string;
-    teacherId: string;
-    courseId: string;
-    courseName: string;
-    text: string;
-    replyText?: string;
-    status: 'pending' | 'resolved';
-    createdAt: string;
-    dateAsked: string;
-}
+import AcademicHub from "@/components/academic/AcademicHub";
+import type { Course, ClassSession, Doubt } from "@/types";
 
 export default function TeacherDashboard() {
     const { user, profile, loading } = useAuth();
@@ -493,6 +460,13 @@ export default function TeacherDashboard() {
                                 </ul>
                             </div>
                         )}
+
+                        {/* Academic Management Hub */}
+                        <AcademicHub 
+                            courseId={selectedCourse.id} 
+                            courseName={selectedCourse.name}
+                            teacherId={user.uid}
+                        />
 
                         {/* Class History */}
                         <div className="bg-white shadow-sm rounded-2xl border border-slate-200 overflow-hidden">

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { db, auth } from "../../../../../lib/firebase";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { Star } from "lucide-react";
 

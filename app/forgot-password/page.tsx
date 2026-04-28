@@ -17,13 +17,13 @@ export default function ForgotPassword() {
             await sendPasswordResetEmail(auth, email);
             toast.success("Password reset email sent! Check your inbox.");
             setEmail(""); // Clear the input
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
             // Handle specific firebase errors if needed, but generic is often safer for enumeration prevention
-            if (error.code === 'auth/user-not-found') {
+            if (error instanceof Error && 'code' in error && (error as Record<string, unknown>).code === 'auth/user-not-found') {
                 toast.error("No account found with this email.");
             } else {
-                toast.error(error.message || "Failed to send reset email.");
+                toast.error(error instanceof Error ? error.message : "Failed to send reset email.");
             }
         } finally {
             setLoading(false);

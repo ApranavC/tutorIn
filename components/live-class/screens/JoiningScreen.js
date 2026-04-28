@@ -57,7 +57,7 @@ export function JoiningScreen({
     setSettingDialogueOpen(true);
   };
 
-  const handleClose = (value) => {
+  const handleClose = () => {
     setSettingDialogueOpen(false);
   };
 
@@ -122,33 +122,43 @@ export function JoiningScreen({
   };
 
   const changeWebcam = async (deviceId) => {
-    const currentvideoTrack = videoTrackRef.current;
+    try {
+      const currentvideoTrack = videoTrackRef.current;
 
-    if (currentvideoTrack) {
-      currentvideoTrack.stop();
+      if (currentvideoTrack) {
+        currentvideoTrack.stop();
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId },
+      });
+      const videoTracks = stream.getVideoTracks();
+
+      const videoTrack = videoTracks.length ? videoTracks[0] : null;
+
+      setVideoTrack(videoTrack);
+    } catch (error) {
+      console.log("Failed to switch webcam", error);
     }
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId },
-    });
-    const videoTracks = stream.getVideoTracks();
-
-    const videoTrack = videoTracks.length ? videoTracks[0] : null;
-
-    setVideoTrack(videoTrack);
   };
   const changeMic = async (deviceId) => {
-    const currentAudioTrack = audioTrackRef.current;
-    currentAudioTrack && currentAudioTrack.stop();
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { deviceId },
-    });
-    const audioTracks = stream.getAudioTracks();
+    try {
+      const currentAudioTrack = audioTrackRef.current;
+      if (currentAudioTrack) {
+      currentAudioTrack.stop();
+    }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId },
+      });
+      const audioTracks = stream.getAudioTracks();
 
-    const audioTrack = audioTracks.length ? audioTracks[0] : null;
-    clearInterval(audioAnalyserIntervalRef.current);
+      const audioTrack = audioTracks.length ? audioTracks[0] : null;
+      clearInterval(audioAnalyserIntervalRef.current);
 
-    setAudioTrack(audioTrack);
+      setAudioTrack(audioTrack);
+    } catch (error) {
+      console.log("Failed to switch microphone", error);
+    }
   };
 
   const getDefaultMediaTracks = async ({ mic, webcam, firstTime }) => {
@@ -178,39 +188,50 @@ export function JoiningScreen({
     }
 
     if (webcam) {
-      const videoConstraints = {
-        video: {
-          width: 1280,
-          height: 720,
-        },
-      };
+      try {
+        const videoConstraints = {
+          video: {
+            width: 1280,
+            height: 720,
+          },
+        };
 
-      const stream = await navigator.mediaDevices.getUserMedia(
-        videoConstraints
-      );
-      const videoTracks = stream.getVideoTracks();
+        const stream = await navigator.mediaDevices.getUserMedia(
+          videoConstraints
+        );
+        const videoTracks = stream.getVideoTracks();
 
-      const videoTrack = videoTracks.length ? videoTracks[0] : null;
-      setVideoTrack(videoTrack);
-      if (firstTime) {
-        setSelectedWebcam({
-          id: videoTrack?.getSettings()?.deviceId,
-        });
+        const videoTrack = videoTracks.length ? videoTracks[0] : null;
+        setVideoTrack(videoTrack);
+        if (firstTime) {
+          setSelectedWebcam({
+            id: videoTrack?.getSettings()?.deviceId,
+          });
+        }
+      } catch (error) {
+        console.log("Failed to access webcam", error);
       }
     }
   };
 
-  async function startMuteListener() {
+  const muteHandlerRef = useRef(null);
+
+  function startMuteListener() {
     const currentAudioTrack = audioTrackRef.current;
+
+    // Remove previous listener if any
+    if (muteHandlerRef.current && audioTrackRef.current) {
+      audioTrackRef.current.removeEventListener("mute", muteHandlerRef.current);
+    }
 
     if (currentAudioTrack) {
       if (currentAudioTrack.muted) {
         setDlgMuted(true);
       }
 
-      currentAudioTrack.addEventListener("mute", (ev) => {
-        setDlgMuted(true);
-      });
+      const handler = () => setDlgMuted(true);
+      muteHandlerRef.current = handler;
+      currentAudioTrack.addEventListener("mute", handler);
     }
   }
 
@@ -248,7 +269,13 @@ export function JoiningScreen({
 
       return () => {
         const currentAudioTrack = audioTrackRef.current;
-        currentAudioTrack && currentAudioTrack.stop();
+        if (currentAudioTrack) {
+          if (muteHandlerRef.current) {
+            currentAudioTrack.removeEventListener("mute", muteHandlerRef.current);
+            muteHandlerRef.current = null;
+          }
+          currentAudioTrack.stop();
+        }
         audioTrackRef.current = null;
       };
     } catch (error) {
@@ -261,6 +288,7 @@ export function JoiningScreen({
       _handleTurnOffMic();
       _handleTurnOffWebcam();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meetingMode]);
 
   useEffect(() => {
@@ -309,6 +337,7 @@ export function JoiningScreen({
 
   useEffect(() => {
     getDevices({ micEnabled, webcamEnabled });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ButtonWithTooltip = ({ onClick, onState, OnIcon, OffIcon, mic }) => {
@@ -446,7 +475,7 @@ export function JoiningScreen({
                       meetingMode === Constants.modes.SEND_AND_RECV && (
                         <div
                           className="m-4 absolute md:left-12 lg:left-24 xl:left-44 md:right-12 lg:right-24 xl:right-44 rounded cursor-pointer bg-gray-700"
-                          onClick={(e) => {
+                          onClick={() => {
                             handleClickOpen();
                           }}
                         >

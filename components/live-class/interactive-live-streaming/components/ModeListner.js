@@ -17,7 +17,7 @@ const reqInfoDefaultState = {
   reject: () => { },
 };
 
-const ModeListner = ({ setMeetingMode, meetingMode }) => {
+const ModeListner = ({ setMeetingMode }) => {
   const mMeetingRef = useRef();
   const { setSideBarMode } = useMeetingAppContext();
 
@@ -39,7 +39,17 @@ const ModeListner = ({ setMeetingMode, meetingMode }) => {
 
   usePubSub(`CHANGE_MODE_${mMeeting?.localParticipant?.id}`, {
     onMessageReceived: (data) => {
-      const message = JSON.parse(data.message);
+      // Ignore stale replayed messages (older than 10 seconds)
+      if (data.timestamp && Date.now() - new Date(data.timestamp).getTime() > 10000) {
+        return;
+      }
+      let message;
+      try {
+        message = JSON.parse(data.message);
+      } catch (err) {
+        console.error("Failed to parse mode change message:", err);
+        return;
+      }
       if (message.mode === Constants.modes.SEND_AND_RECV) {
         if (message.skipConsent) {
           mMeeting.changeMode(message.mode);
@@ -81,7 +91,7 @@ const ModeListner = ({ setMeetingMode, meetingMode }) => {
       onMessageReceived: (data) => {
         try {
           new Audio("/preview.mp3").play().catch(() => { });
-        } catch (err) { }
+        } catch { }
 
         toast(`${data.senderName} has been added as a Co-host`, {
           position: "bottom-left",
@@ -94,7 +104,7 @@ const ModeListner = ({ setMeetingMode, meetingMode }) => {
           theme: "light",
         });
       },
-      onOldMessagesReceived: (messages) => { },
+      onOldMessagesReceived: () => { },
     }
   );
 
@@ -105,7 +115,7 @@ const ModeListner = ({ setMeetingMode, meetingMode }) => {
         if (data.message.senderId === participantRef.current.participant.id) {
           try {
             new Audio("/preview.mp3").play().catch(() => { });
-          } catch (err) { }
+          } catch { }
 
           toast(
             `${data.senderName} has rejected the request to become Co-host`,

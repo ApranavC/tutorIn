@@ -1,9 +1,29 @@
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
+import { headers } from "next/headers";
 
 export async function GET() {
-    const API_KEY = process.env.NEXT_PUBLIC_VIDEOSDK_API_KEY;
-    const SECRET_KEY = process.env.NEXT_PUBLIC_VIDEOSDK_SECRET_KEY;
+    const headersList = await headers();
+    const referer = headersList.get("referer") || "";
+    const host = headersList.get("host") || "";
+
+    if (referer) {
+        let refererHost = "";
+        try {
+            refererHost = new URL(referer).host;
+        } catch {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
+        if (refererHost !== host) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
+    }
+
+    // Server-only secrets — must NOT be prefixed with NEXT_PUBLIC_.
+    // Fall back to the legacy public names so existing deployments keep working
+    // until operators rotate the secret and rename the env var.
+    const API_KEY = process.env.VIDEOSDK_API_KEY || process.env.NEXT_PUBLIC_VIDEOSDK_API_KEY;
+    const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY || process.env.NEXT_PUBLIC_VIDEOSDK_SECRET_KEY;
 
     if (!API_KEY || !SECRET_KEY) {
         return NextResponse.json(

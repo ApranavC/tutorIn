@@ -25,9 +25,40 @@ const DemoteTrigger = ({ id, onDemoted }) => {
   return null;
 };
 
+const MicCamControls = ({ participantId, micOn, webcamOn }) => {
+  const { disableMic, disableWebcam } = useParticipant(participantId);
+  return (
+    <div className="flex gap-2 mt-2 pt-2 border-t border-gray-600">
+      {micOn && (
+        <button
+          onClick={() => disableMic()}
+          className="flex-1 text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded transition-colors"
+          title="Mute participant's microphone"
+        >
+          🎤 Mute Mic
+        </button>
+      )}
+      {webcamOn && (
+        <button
+          onClick={() => disableWebcam()}
+          className="flex-1 text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 px-2 py-1 rounded transition-colors"
+          title="Disable participant's camera"
+        >
+          📷 Stop Cam
+        </button>
+      )}
+    </div>
+  );
+};
+
 function ParticipantListItem({ participantId, raisedHand, onPromote, onDemote, role }) {
   const { micOn, webcamOn, displayName, isLocal, mode } =
     useParticipant(participantId);
+
+  // Only treat as co-host if mode is SEND_AND_RECV AND hand is NOT currently raised.
+  // When a student raises hand, VideoSDK can briefly report stale SEND_AND_RECV mode
+  // before the mode actually settles — this prevents showing Remove/Mute buttons prematurely.
+  const isCoHost = mode === Constants.modes.SEND_AND_RECV && !raisedHand;
 
   return (
     <div className="mt-2 m-2 p-2 bg-gray-700 rounded-lg mb-0 border border-gray-600 shadow-sm">
@@ -45,7 +76,7 @@ function ParticipantListItem({ participantId, raisedHand, onPromote, onDemote, r
           <p className="text-base text-white overflow-hidden whitespace-pre-wrap overflow-ellipsis">
             {isLocal ? "You" : nameTructed(displayName, 15)}
           </p>
-          {mode === Constants.modes.SEND_AND_RECV && (
+          {isCoHost && (
             <p className="text-xs text-blue-400 font-semibold">Co-host</p>
           )}
         </div>
@@ -60,7 +91,7 @@ function ParticipantListItem({ participantId, raisedHand, onPromote, onDemote, r
         </div>
         {!isLocal && role === "teacher" && (
           <div className="m-1 p-1">
-            {mode === Constants.modes.SEND_AND_RECV ? (
+            {isCoHost ? (
               <button
                 onClick={onDemote}
                 className="text-white text-xs bg-red-600 px-2 py-1 rounded hover:bg-red-700 font-semibold"
@@ -79,6 +110,10 @@ function ParticipantListItem({ participantId, raisedHand, onPromote, onDemote, r
           </div>
         )}
       </div>
+      {/* Moderator controls: teacher can mute mic / stop camera of co-hosts only */}
+      {!isLocal && role === "teacher" && isCoHost && (micOn || webcamOn) && (
+        <MicCamControls participantId={participantId} micOn={micOn} webcamOn={webcamOn} />
+      )}
     </div>
   );
 }
@@ -92,7 +127,6 @@ export function ParticipantPanel({ panelHeight, role }) {
   const handlePromote = (newCoHostId) => {
     const toDemote = [];
     participants.forEach((p) => {
-      // Demote any other participant who is in CONFERENCE mode (and not local)
       if (
         p.id !== mMeeting.localParticipant.id &&
         p.id !== newCoHostId &&
@@ -103,12 +137,20 @@ export function ParticipantPanel({ panelHeight, role }) {
     });
 
     if (toDemote.length > 0) {
-      setDemoteQueue((prev) => [...prev, ...toDemote]);
+      // Deduplicate against existing queue to prevent race conditions
+      setDemoteQueue((prev) => {
+        const existing = new Set(prev);
+        const newIds = toDemote.filter((id) => !existing.has(id));
+        return [...prev, ...newIds];
+      });
     }
   };
 
   const handleDemote = (coHostId) => {
-    setDemoteQueue((prev) => [...prev, coHostId]);
+    setDemoteQueue((prev) => {
+      if (prev.includes(coHostId)) return prev;
+      return [...prev, coHostId];
+    });
   };
 
   const removeDemoteId = (id) => {
@@ -164,11 +206,10 @@ export function ParticipantPanel({ panelHeight, role }) {
         className="flex flex-col flex-1"
         style={{ height: panelHeight - 100 }}
       >
-        {[...participants.keys()].map((participantId, index) => {
-          const { raisedHand, participantId: peerId } = part[index];
+        {part.map(({ raisedHand, participantId: peerId }) => {
           return (
             <ParticipantListItem
-              key={participantId}
+              key={peerId}
               participantId={peerId}
               raisedHand={raisedHand}
               onPromote={() => handlePromote(peerId)}

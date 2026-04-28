@@ -8,8 +8,8 @@ import PollList from "../interactive-live-streaming/components/pollContainer/Pol
 import SubmitPollList from "../interactive-live-streaming/components/pollContainer/SubmitPollList";
 import { sideBarModes } from "@/components/live-class/utils/common";
 import { XCircleIcon } from "@heroicons/react/24/outline";
-import { ChatPanel } from "./ChatPanel";
 import { ParticipantPanel } from "./ParticipantPanel";
+
 import { Dialog, Transition } from "@headlessui/react";
 import { useMediaQuery } from "react-responsive";
 import { useMeetingAppContext } from "@/components/live-class/MeetingAppContextDef";
@@ -91,8 +91,6 @@ const SideBarTabView = ({
             )}
             {sideBarMode === "PARTICIPANTS" ? (
               <ParticipantPanel panelHeight={panelHeight} role={role} />
-            ) : sideBarMode === "CHAT" ? (
-              <ChatPanel panelHeight={panelHeight} />
             ) : sideBarMode === "POLLS" && meetingMode !== Constants.modes.RECV_ONLY ? (
               polls.length === 0 && draftPolls.length === 0 ? (
                 <CreatePoll {...{ panelHeight }} />
@@ -154,9 +152,12 @@ export function SidebarConatiner({
     setSideBarMode(null);
   };
 
-  return sideBarMode ? (
+  // CHAT mode is handled by FloatingChatOverlay — don't open sidebar for it
+  const sidebarShouldOpen = sideBarMode && sideBarMode !== sideBarModes.CHAT;
+
+  return sidebarShouldOpen ? (
     isTab || isMobile ? (
-      <Transition appear show={sideBarMode ? true : false} as={Fragment}>
+      <Transition appear show={sidebarShouldOpen} as={Fragment}>
         <Dialog
           as="div"
           className="relative"
@@ -185,8 +186,8 @@ export function SidebarConatiner({
             leaveTo="translate-y-full opacity-0 scale-95"
           >
             <div className="fixed inset-0 overflow-y-hidden">
-              <div className="flex h-screen items-center justify-center text-center">
-                <Dialog.Panel className="w-screen transform overflow-hidden bg-gray-800 shadow-xl transition-all">
+              <div className="flex h-screen items-end justify-center text-center">
+                <Dialog.Panel className="w-screen transform overflow-hidden bg-gray-800 shadow-xl transition-all" style={{ height: "80vh" }}>
                   <SideBarTabView
                     height={"100%"}
                     sideBarContainerWidth={"100%"}
@@ -196,6 +197,7 @@ export function SidebarConatiner({
                     panelHeaderPadding={panelHeaderPadding}
                     panelPadding={panelPadding}
                     handleClose={handleClose}
+                    meetingMode={meetingMode}
                     role={role}
                   />
                 </Dialog.Panel>

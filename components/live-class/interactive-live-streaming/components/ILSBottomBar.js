@@ -36,6 +36,87 @@ import { sideBarModes } from "@/components/live-class/utils/common";
 import { Dialog, Popover, Transition } from "@headlessui/react";
 import { useMeetingAppContext } from "@/components/live-class/MeetingAppContextDef";
 
+const RAISE_HAND_COOLDOWN_MS = 15000; // 1 raise per 15 seconds
+
+const RaiseHandBTN = ({ isMobile, isTab }) => {
+  const { publish } = usePubSub("RAISE_HAND");
+  const mMeeting = useMeeting();
+  const localParticipantId = mMeeting?.localParticipant?.id;
+  const [pending, setPending] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
+  const pendingRef = useRef(false);
+  const cooldownTimerRef = useRef(null);
+  const fallbackTimerRef = useRef(null);
+
+  // Re-enable "pending" state when tutor approves or rejects (both publish LOWER_HAND)
+  // But the cooldown timer continues independently
+  usePubSub("LOWER_HAND", {
+    onMessageReceived: (data) => {
+      if (data.message === localParticipantId) {
+        pendingRef.current = false;
+        setPending(false);
+        if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      }
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    };
+  }, []);
+
+  const isDisabled = pending || cooldown;
+
+  const handleRaiseHand = () => {
+    if (isDisabled) return;
+
+    // Mark as pending (waiting for tutor)
+    pendingRef.current = true;
+    setPending(true);
+    publish("Raise Hand", { persist: false });
+
+    // Start strict 15-second cooldown (independent of tutor response)
+    setCooldown(true);
+    if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    cooldownTimerRef.current = setTimeout(() => {
+      setCooldown(false);
+    }, RAISE_HAND_COOLDOWN_MS);
+
+    // Fallback: clear pending state if tutor never responds (cooldown still applies)
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    fallbackTimerRef.current = setTimeout(() => {
+      pendingRef.current = false;
+      setPending(false);
+    }, RAISE_HAND_COOLDOWN_MS + 1000);
+  };
+
+  const tooltipText = pending
+    ? "Waiting for tutor..."
+    : cooldown
+      ? "Please wait before raising hand again"
+      : "Raise Hand";
+
+  return isMobile || isTab ? (
+    <MobileIconButton
+      id="RaiseHandBTN"
+      tooltipTitle={tooltipText}
+      Icon={RaiseHandIcon}
+      onClick={handleRaiseHand}
+      buttonText={pending ? "Pending..." : cooldown ? "Wait..." : "Raise Hand"}
+      disabled={isDisabled}
+    />
+  ) : (
+    <OutlinedButton
+      onClick={handleRaiseHand}
+      tooltip={tooltipText}
+      Icon={RaiseHandIcon}
+      disabled={isDisabled}
+    />
+  );
+};
+
 export function ILSBottomBar({
   bottomBarHeight,
   setIsMeetingLeft,
@@ -47,28 +128,6 @@ export function ILSBottomBar({
   role,
 }) {
   const { sideBarMode, setSideBarMode } = useMeetingAppContext();
-  const RaiseHandBTN = ({ isMobile, isTab }) => {
-    const { publish } = usePubSub("RAISE_HAND");
-    const RaiseHand = () => {
-      publish("Raise Hand");
-    };
-
-    return isMobile || isTab ? (
-      <MobileIconButton
-        id="RaiseHandBTN"
-        tooltipTitle={"Raise hand"}
-        Icon={RaiseHandIcon}
-        onClick={RaiseHand}
-        buttonText={"Raise Hand"}
-      />
-    ) : (
-      <OutlinedButton
-        onClick={RaiseHand}
-        tooltip={"Raise Hand"}
-        Icon={RaiseHandIcon}
-      />
-    );
-  };
 
   const RecordingBTN = () => {
     const { startRecording, stopRecording, recordingState } = useMeeting();
@@ -858,7 +917,9 @@ export function ILSBottomBar({
                               }`}
                           >
                             {icon === BottomBarButtonTypes.RAISE_HAND ? (
-                              <RaiseHandBTN isMobile={isMobile} isTab={isTab} />
+                              role !== "teacher" && meetingMode === Constants.modes.RECV_ONLY ? (
+                                <RaiseHandBTN isMobile={isMobile} isTab={isTab} />
+                              ) : null
                             ) : icon === BottomBarButtonTypes.SCREEN_SHARE ? (
                               <ScreenShareBTN
                                 isMobile={isMobile}
@@ -905,7 +966,9 @@ export function ILSBottomBar({
         {meetingMode === Constants.modes.SEND_AND_RECV && (
           <ScreenShareBTN isMobile={isMobile} isTab={isTab} />
         )}
-        <RaiseHandBTN isMobile={isMobile} isTab={isTab} />
+        {role !== "teacher" && meetingMode === Constants.modes.RECV_ONLY && (
+          <RaiseHandBTN isMobile={isMobile} isTab={isTab} />
+        )}
         {meetingMode === Constants.modes.RECV_ONLY && (
           <ReactionBTN isMobile={isMobile} isTab={isTab} />
         )}

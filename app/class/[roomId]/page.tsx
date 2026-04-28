@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 // import { generateToken } from "../../../lib/videoService"; // Moved to LiveClassRoom
 import dynamic_next from 'next/dynamic';
@@ -17,31 +17,37 @@ import { db } from "../../../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 function ClassRoomContent() {
-    const { roomId } = useParams();
+    const { roomId: rawRoomId } = useParams();
+    const roomId = Array.isArray(rawRoomId) ? rawRoomId[0] : rawRoomId;
     const searchParams = useSearchParams();
     const classId = searchParams.get("classId");
     const courseId = searchParams.get("courseId");
     const { user, profile, loading } = useAuth();
     const router = useRouter();
 
-    // const [meetingUrl, setMeetingUrl] = useState(""); // Removed
     const [classStatus, setClassStatus] = useState<"loading" | "active" | "ended" | "not_found">("loading");
-    const [classDetails, setClassDetails] = useState<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [classDetails, setClassDetails] = useState<Record<string, unknown> | null>(null);
+
+    // Keep a live ref to profile/courseId so the popstate handler always reads
+    // the latest values instead of being frozen at first render.
+    const profileRef = useRef(profile);
+    const courseIdRef = useRef(courseId);
+    useEffect(() => { profileRef.current = profile; }, [profile]);
+    useEffect(() => { courseIdRef.current = courseId; }, [courseId]);
 
     // Handle Browser Back Button
     useEffect(() => {
-        // Push a state so we can trap the back button
         window.history.pushState(null, "", window.location.href);
 
         const handlePopState = (event: PopStateEvent) => {
-            // Prevent default back behavior and redirect to dashboard
             event.preventDefault();
-            let dashboardUrl = profile?.role === "teacher"
+            let dashboardUrl = profileRef.current?.role === "teacher"
                 ? "/teacher/dashboard"
                 : "/student/dashboard";
 
-            if (courseId) {
-                dashboardUrl += `?courseId=${courseId}`;
+            if (courseIdRef.current) {
+                dashboardUrl += `?courseId=${courseIdRef.current}`;
             }
             router.replace(dashboardUrl);
         };
@@ -51,7 +57,7 @@ function ClassRoomContent() {
         return () => {
             window.removeEventListener("popstate", handlePopState);
         };
-    }, [router, profile]);
+    }, [router]);
 
 
     useEffect(() => {
@@ -100,17 +106,17 @@ function ClassRoomContent() {
 
     // Screen Wake Lock
     useEffect(() => {
-        let wakeLock: any = null;
+        let wakeLock: WakeLockSentinel | null = null;
 
         const requestWakeLock = async () => {
             try {
                 if ('wakeLock' in navigator) {
-                    // Cast to any to avoid TS errors if types are missing
-                    wakeLock = await (navigator as any).wakeLock.request('screen');
+                    wakeLock = await navigator.wakeLock.request('screen');
                     console.log('Wake Lock is active');
                 }
-            } catch (err: any) {
-                console.warn(`Wake Lock Error: ${err.name}, ${err.message}`);
+            } catch (err: unknown) {
+                const errObj = err instanceof Error ? err : { name: 'Unknown', message: String(err) };
+                console.warn(`Wake Lock Error: ${errObj.name}, ${errObj.message}`);
             }
         };
 
@@ -171,12 +177,30 @@ function ClassRoomContent() {
     // Removed waiting for meetingUrl, now checking loading states inside LiveClassRoom or here if needed.
     // Using classStatus only.
 
+    if (!roomId) {
+        return (
+            <div className="h-screen flex flex-col items-center justify-center bg-gray-100">
+                <h1 className="text-2xl font-bold text-gray-800 mb-4">Invalid Room</h1>
+                <button
+                    type="button"
+                    onClick={() => window.history.back()}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                    Return to Dashboard
+                </button>
+            </div>
+        );
+    }
+
+    const resolvedRole: "teacher" | "student" =
+        profile?.role === "teacher" ? "teacher" : "student";
+
     return (
         <div className="flex flex-col h-[100dvh] w-full bg-gray-950 overflow-hidden">
             <LiveClassRoom
-                roomId={roomId as string}
+                roomId={roomId}
                 classId={classId || ""}
-                role={profile?.role || "student"}
+                role={resolvedRole}
                 participantName={profile?.displayName || user?.email?.split("@")[0] || "User"}
             />
         </div>

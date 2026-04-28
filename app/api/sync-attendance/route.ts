@@ -53,10 +53,10 @@ export async function POST(request: Request) {
             events: { start: string, end: string }[]
         }> = {};
 
-        sessions.forEach((session: any) => {
+        sessions.forEach((session: Record<string, unknown>) => {
             if (session.participants) {
-                session.participants.forEach((p: any) => {
-                    const name = p.name;
+                (session.participants as Record<string, unknown>[]).forEach((p: Record<string, unknown>) => {
+                    const name = p.name as string;
                     if (!participantStats[name]) {
                         participantStats[name] = {
                             name: name,
@@ -66,17 +66,17 @@ export async function POST(request: Request) {
                     }
 
                     if (p.timelog) {
-                        p.timelog.forEach((log: any) => {
-                            const start = new Date(log.start).getTime();
-                            const end = new Date(log.end).getTime();
+                        (p.timelog as Record<string, unknown>[]).forEach((log: Record<string, unknown>) => {
+                            const start = new Date(log.start as string).getTime();
+                            const end = new Date(log.end as string).getTime();
                             const durationMs = end - start;
                             const durationMins = durationMs / 1000 / 60;
 
                             if (durationMins > 0) {
                                 participantStats[name].totalDurationMinutes += durationMins;
                                 participantStats[name].events.push({
-                                    start: log.start,
-                                    end: log.end
+                                    start: log.start as string,
+                                    end: log.end as string
                                 });
                             }
                         });
@@ -101,8 +101,8 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, timeline });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Sync Attendance Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
     }
 }

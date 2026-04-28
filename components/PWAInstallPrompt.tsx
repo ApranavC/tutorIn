@@ -3,9 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { X, Share, PlusSquare } from "lucide-react";
 
+interface BeforeInstallPromptEvent extends Event {
+    prompt(): Promise<void>;
+    userChoice: Promise<{ outcome: string }>;
+}
+
 export default function PWAInstallPrompt() {
     const [showPrompt, setShowPrompt] = useState(false);
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);
 
@@ -13,9 +18,10 @@ export default function PWAInstallPrompt() {
         // Check if running in standalone mode (already installed)
         const isStandaloneMode =
             window.matchMedia("(display-mode: standalone)").matches ||
-            (window.navigator as any).standalone ||
+            ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone) ||
             document.referrer.includes("android-app://");
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsStandalone(isStandaloneMode);
 
         if (isStandaloneMode) return;
@@ -26,9 +32,9 @@ export default function PWAInstallPrompt() {
         setIsIOS(isIosDevice);
 
         // Capture the PWA install prompt event (Android/Chrome)
-        const handleBeforeInstallPrompt = (e: any) => {
+        const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
-            setDeferredPrompt(e);
+            setDeferredPrompt(e as BeforeInstallPromptEvent);
             // Only show if not iOS (iOS handling is separate logic) or if we want to support both uniformly
             if (!isIosDevice) {
                 setShowPrompt(true);

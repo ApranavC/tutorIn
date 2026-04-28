@@ -7,24 +7,8 @@ import { db, auth } from "../../../lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, orderBy, getDocs, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
-import { LogOut, Plus, Users, BookOpen } from "lucide-react";
-
-interface Course {
-    id: string;
-    name: string; // "Advanced Mathematics"
-    code: string; // "MATH101"
-    teacherId: string;
-    teacherEmail: string;
-    studentIds: string[];
-    createdAt: string;
-}
-
-interface UserProfile {
-    uid: string;
-    email: string;
-    role: string;
-    displayName?: string;
-}
+import { LogOut, Users, BookOpen } from "lucide-react";
+import type { Course, UserProfile } from "@/types";
 
 export default function AdminDashboard() {
     const { user, profile, loading } = useAuth();
@@ -41,6 +25,7 @@ export default function AdminDashboard() {
     const [selectedTeacher, setSelectedTeacher] = useState("");
 
     // UI States
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeTab, setActiveTab] = useState("courses");
     const [managingCourse, setManagingCourse] = useState<Course | null>(null);
     const [studentToAdd, setStudentToAdd] = useState("");
@@ -100,6 +85,13 @@ export default function AdminDashboard() {
             return;
         }
 
+        // Check for duplicate course code
+        const existingCourse = courses.find(c => c.code.toLowerCase() === newCourseCode.trim().toLowerCase());
+        if (existingCourse) {
+            toast.error(`Course code "${newCourseCode}" is already in use by "${existingCourse.name}".`);
+            return;
+        }
+
         setIsCreating(true);
         try {
             const teacher = teachers.find(t => t.uid === selectedTeacher);
@@ -141,7 +133,10 @@ export default function AdminDashboard() {
         }
     };
 
-    if (loading || !profile || profile.role !== 'admin') return <div className="p-8 text-center">Loading Admin Dashboard...</div>;
+    if (loading) return <div className="p-8 text-center">Loading Admin Dashboard...</div>;
+    // Defense-in-depth: don't render the admin layout for unauthenticated users
+    // or non-admins. The useEffect above redirects them; until that lands, show nothing.
+    if (!user || profile?.role !== "admin") return null;
 
     const handleCleanup = async () => {
         if (!confirm("Are you sure you want to mark ALL active classes as ended?")) return;

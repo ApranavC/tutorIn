@@ -45,9 +45,9 @@ export default function Signup() {
 
             toast.success("Account created successfully!");
             router.push(role === "teacher" ? "/teacher/dashboard" : "/student/dashboard");
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            toast.error(error.message || "Failed to create account");
+            toast.error(error instanceof Error ? error.message : "Failed to create account");
         } finally {
             setLoading(false);
         }

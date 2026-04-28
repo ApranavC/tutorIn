@@ -44,9 +44,9 @@ export default function Login() {
             } else {
                 toast.error("User profile not found.");
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            toast.error(error.message || "Failed to login");
+            toast.error(error instanceof Error ? error.message : "Failed to login");
         } finally {
             setLoading(false);
         }

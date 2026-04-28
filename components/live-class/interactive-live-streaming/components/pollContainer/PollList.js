@@ -92,7 +92,7 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
             return 0;
           })[0]?.optionId;
 
-      groupedSubmissionCount &&
+      if (groupedSubmissionCount) {
         Object.keys(groupedSubmissionCount).forEach((optionId) => {
           if (
             groupedSubmissionCount[optionId] ===
@@ -101,6 +101,7 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
             maxSubmittedOptions.push(optionId);
           }
         });
+      }
 
       return {
         localSubmittedOption,
@@ -110,18 +111,18 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
       };
     }, [poll, localParticipantId]);
 
-  const checkTimeOver = ({ timeout, createdAt }) =>
-    !(new Date(createdAt).getTime() + timeout * 1000 > new Date().getTime());
+  const checkTimeOver = ({ timeout: t, createdAt: c }) =>
+    !(new Date(c).getTime() + t * 1000 > new Date().getTime());
 
-  const updateTimer = ({ timeout, createdAt }) => {
-    if (checkTimeOver({ timeout, createdAt })) {
+  const updateTimerFn = ({ timeout: t, createdAt: c }) => {
+    if (checkTimeOver({ timeout: t, createdAt: c })) {
       setTimeLeft(0);
       setIsTimerPollActive(false);
       clearInterval(timerIntervalRef.current);
     } else {
       setTimeLeft(
-        (new Date(createdAt).getTime() +
-          timeout * 1000 -
+        (new Date(c).getTime() +
+          t * 1000 -
           new Date().getTime()) /
           1000
       );
@@ -129,13 +130,16 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
     }
   };
 
+  const updateTimerRef = useRef(updateTimerFn);
+  useEffect(() => { updateTimerRef.current = updateTimerFn; });
+
   useEffect(() => {
     if (hasTimer) {
-      updateTimer({ timeout, createdAt });
+      updateTimerRef.current({ timeout, createdAt });
 
       if (!checkTimeOver({ timeout, createdAt })) {
         timerIntervalRef.current = setInterval(() => {
-          updateTimer({ timeout, createdAt });
+          updateTimerRef.current({ timeout, createdAt });
         }, 1000);
       }
     }
@@ -143,7 +147,7 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
     return () => {
       clearInterval(timerIntervalRef.current);
     };
-  }, []);
+  }, [hasTimer, timeout, createdAt]);
 
   return (
     <div style={{ borderBottom: "1px solid #70707033" }}>
@@ -180,6 +184,7 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
 
             return (
               <div
+                key={item.optionId}
                 style={{
                   marginTop: j === 0 ? equalSpacing : equalSpacing / 2,
                 }}
@@ -236,9 +241,9 @@ const Poll = ({ poll, isDraft, publishDraftPoll }) => {
                 style={{ marginTop: equalSpacing + 2 }}
                 onClick={() => {
                   EndPublish(
-                    {
+                    JSON.stringify({
                       pollId: poll.id,
-                    },
+                    }),
                     { persist: true }
                   );
                 }}
@@ -279,12 +284,12 @@ const PollList = ({ panelHeight }) => {
                   publishDraftPoll={(poll) => {
                     //
                     RemoveFromDraftPublish(
-                      { pollId: poll.id },
+                      JSON.stringify({ pollId: poll.id }),
                       { persist: true }
                     );
                     //
                     publishCreatePoll(
-                      {
+                      JSON.stringify({
                         id: uuid(),
                         question: poll.question,
                         options: poll.options,
@@ -293,7 +298,7 @@ const PollList = ({ panelHeight }) => {
                         hasCorrectAnswer: poll.hasCorrectAnswer,
                         isActive: true,
                         index: polls.length + 1,
-                      },
+                      }),
                       { persist: true }
                     );
                     setSideBarMode(sideBarModes.POLLS);

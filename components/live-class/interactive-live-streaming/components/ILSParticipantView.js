@@ -50,12 +50,14 @@ function ILSParticipantView({ isPresenting }) {
       }
     }
     return filteredParticipants;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     participants,
     activeSpeakerId,
     pinnedParticipants,
     presenterId,
     localScreenShareOn,
+    localParticipant.id,
   ]);
   const isMobile = useIsMobile();
   const isTab = useIsTab();

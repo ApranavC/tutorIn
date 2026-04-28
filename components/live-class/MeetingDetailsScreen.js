@@ -17,6 +17,7 @@ export function MeetingDetailsScreen({
   const [isCopied, setIsCopied] = useState(false);
   const [iscreateMeetingClicked, setIscreateMeetingClicked] = useState(false);
   const [isJoinMeetingClicked, setIsJoinMeetingClicked] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
   React.useEffect(() => {
     if (meetingId && !isJoinMeetingClicked && !iscreateMeetingClicked) {
@@ -59,10 +60,12 @@ export function MeetingDetailsScreen({
       {(iscreateMeetingClicked || isJoinMeetingClicked) && (
         <>
           <button
-            disabled={participantName.length < 3}
-            className={`w-full ${participantName.length < 3 ? "bg-gray-650" : "bg-purple-350"
+            disabled={participantName.length < 3 || isJoining}
+            className={`w-full ${participantName.length < 3 || isJoining ? "bg-gray-650" : "bg-purple-350"
               }  text-white px-2 py-3 rounded-xl mt-5`}
             onClick={() => {
+              if (isJoining) return;
+              setIsJoining(true);
               if (iscreateMeetingClicked) {
                 if (videoTrack) {
                   videoTrack.stop();
@@ -76,9 +79,11 @@ export function MeetingDetailsScreen({
               }
             }}
           >
-            {iscreateMeetingClicked
-              ? "Start Class"
-              : "Join Class"}
+            {isJoining
+              ? "Joining..."
+              : iscreateMeetingClicked
+                ? "Start Class"
+                : "Join Class"}
           </button>
         </>
       )}

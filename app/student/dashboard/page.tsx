@@ -5,43 +5,13 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { db, auth } from "../../../lib/firebase";
-import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, addDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, addDoc, runTransaction } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import toast from "react-hot-toast";
 import { LogOut, Video, FileText, BookOpen, Clock, User, ChevronDown, ChevronUp, Sparkles, Award, MessageCircleQuestion, Send } from "lucide-react";
-
-interface Course {
-    id: string;
-    name: string;
-    code: string;
-    teacherId: string;
-    teacherName?: string;
-}
-
-interface ClassSession {
-    id: string;
-    title: string;
-    roomId: string; // VideoSDK Room ID
-    status: 'active' | 'ended';
-    createdAt: string;
-    courseId?: string;
-    notes?: { url: string; name: string }[];
-    attendance?: { uid: string; name: string; timestamp: string }[];
-}
-
-interface Doubt {
-    id: string;
-    studentId: string;
-    studentName: string;
-    teacherId: string;
-    courseId: string;
-    courseName: string;
-    text: string;
-    replyText?: string;
-    status: 'pending' | 'resolved';
-    createdAt: string;
-    dateAsked: string;
-}
+import StudentAcademicHub from "@/components/academic/StudentAcademicHub";
+import Leaderboard from "@/components/academic/Leaderboard";
+import type { Course, ClassSession, Doubt } from "@/types";
 
 import { Suspense } from "react";
 
@@ -64,7 +34,20 @@ function DashboardContent() {
     const [dailyDoubtCount, setDailyDoubtCount] = useState(0);
     const [doubtText, setDoubtText] = useState("");
     const [submittingDoubt, setSubmittingDoubt] = useState(false);
-    const todayStr = new Date().toISOString().split('T')[0];
+    // UTC date string, recomputed daily so midnight rollover doesn't leave a stale query.
+    const getUTCDateStr = () => {
+        const d = new Date();
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    };
+    const [todayStr, setTodayStr] = useState<string>(getUTCDateStr);
+    useEffect(() => {
+        const tick = () => {
+            const next = getUTCDateStr();
+            setTodayStr(prev => (prev === next ? prev : next));
+        };
+        const intervalId = window.setInterval(tick, 60_000);
+        return () => window.clearInterval(intervalId);
+    }, []);
 
     // Fetch daily doubts for limit check
     useEffect(() => {
@@ -74,9 +57,15 @@ function DashboardContent() {
             where("studentId", "==", user.uid),
             where("dateAsked", "==", todayStr)
         );
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setDailyDoubtCount(snapshot.docs.length);
-        });
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                setDailyDoubtCount(snapshot.docs.length);
+            },
+            (error) => {
+                console.error("Firestore error (daily doubts):", error);
+            }
+        );
         return () => unsubscribe();
     }, [user, todayStr]);
 
@@ -91,13 +80,49 @@ function DashboardContent() {
             where("courseId", "==", selectedCourse.id),
             where("studentId", "==", user.uid)
         );
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doubt));
-            data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            setDoubts(data);
-        });
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Doubt));
+                data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                setDoubts(data);
+            },
+            (error) => {
+                console.error("Firestore error (doubts):", error);
+            }
+        );
         return () => unsubscribe();
     }, [selectedCourse, user]);
+
+    // Atomic attendance log: read-then-write inside a transaction so rapid
+    // re-clicks or racing tabs can't append duplicate entries. Awaits the write
+    // before the caller navigates, so a failed save is actually visible.
+    const recordAttendance = async (classId: string) => {
+        if (!user) return;
+        try {
+            const classRef = doc(db, "classes", classId);
+            await runTransaction(db, async (tx) => {
+                const snap = await tx.get(classRef);
+                if (!snap.exists()) return;
+                const data = snap.data() as { attendance?: { uid: string; name: string; timestamp: string }[] };
+                const existing = data.attendance || [];
+                if (existing.some((a) => a.uid === user.uid)) return;
+                tx.update(classRef, {
+                    attendance: [
+                        ...existing,
+                        {
+                            uid: user.uid,
+                            name: profile?.displayName || user.email,
+                            timestamp: new Date().toISOString(),
+                        },
+                    ],
+                });
+            });
+        } catch (err) {
+            console.error("Error logging attendance", err);
+            toast.error("Couldn't record attendance — joining anyway.");
+        }
+    };
 
     const handleAskDoubt = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -118,7 +143,7 @@ function DashboardContent() {
                 text: doubtText.trim(),
                 status: 'pending',
                 createdAt: new Date().toISOString(),
-                dateAsked: todayStr
+                dateAsked: getUTCDateStr(),
             });
             setDoubtText("");
             toast.success("Doubt submitted successfully!");
@@ -161,40 +186,58 @@ function DashboardContent() {
 
     // Request Notification Permission
     useEffect(() => {
-        if (typeof window !== "undefined" && "Notification" in window) {
+        if (
+            typeof window === "undefined" ||
+            typeof Notification === "undefined" ||
+            typeof Notification.requestPermission !== "function"
+        ) {
+            return;
+        }
+        try {
             if (Notification.permission === "default") {
-                Notification.requestPermission();
+                Notification.requestPermission().catch(() => { /* ignore */ });
             }
+        } catch {
+            // Some environments (e.g. restricted iframes) throw synchronously — ignore.
         }
     }, []);
 
     // Fetch Enrolled Courses
     useEffect(() => {
         if (!user) return;
-        // Query courses where studentIds array contains user.uid
+        // Query courses where studentIds array contains user.uid — Firestore rules
+        // also enforce this, so `courseIdParam` can only auto-select courses the
+        // user is actually enrolled in.
         const q = query(collection(db, "courses"), where("studentIds", "array-contains", user.uid));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-            setCourses(data);
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+                setCourses(data);
 
-            // Logic to auto-select or maintain selection
-            if (courseIdParam && !selectedCourse) {
-                const courseToSelect = data.find(c => c.id === courseIdParam);
-                if (courseToSelect) setSelectedCourse(courseToSelect);
-            } else if (selectedCourse) {
-                // Check if still enrolled
-                const stillEnrolled = data.find(c => c.id === selectedCourse.id);
-                if (!stillEnrolled) setSelectedCourse(null);
+                if (courseIdParam && !selectedCourse) {
+                    const courseToSelect = data.find(c => c.id === courseIdParam);
+                    if (courseToSelect) {
+                        setSelectedCourse(courseToSelect);
+                    } else {
+                        toast.error("You are not enrolled in that course.");
+                    }
+                } else if (selectedCourse) {
+                    const stillEnrolled = data.find(c => c.id === selectedCourse.id);
+                    if (!stillEnrolled) setSelectedCourse(null);
+                }
+            },
+            (error) => {
+                console.error("Firestore error (courses):", error);
             }
-        });
+        );
         return () => unsubscribe();
     }, [user, selectedCourse, courseIdParam]);
 
     // Fetch Classes for Selected Course
     useEffect(() => {
         if (!selectedCourse) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            if (classes.length > 0) setClasses([]);
+            setClasses([]);
             return;
         }
 
@@ -250,8 +293,7 @@ function DashboardContent() {
     // Fetch All Active Classes for Enrolled Courses (Global Dashboard)
     useEffect(() => {
         if (selectedCourse || courses.length === 0) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            if (activeClasses.length > 0) setActiveClasses([]);
+            setActiveClasses([]);
             return;
         }
 
@@ -404,21 +446,7 @@ function DashboardContent() {
                                                             </div>
                                                             <button
                                                                 onClick={async () => {
-                                                                    const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
-                                                                    if (!alreadyJoined) {
-                                                                        try {
-                                                                            const classRef = doc(db, "classes", cls.id);
-                                                                            await updateDoc(classRef, {
-                                                                                attendance: arrayUnion({
-                                                                                    uid: user.uid,
-                                                                                    name: profile?.displayName || user.email,
-                                                                                    timestamp: new Date().toISOString()
-                                                                                })
-                                                                            });
-                                                                        } catch (err) {
-                                                                            console.error("Error logging attendance", err);
-                                                                        }
-                                                                    }
+                                                                    await recordAttendance(cls.id);
                                                                     router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${cls.courseId}`);
                                                                 }}
                                                                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all focus:ring-2 focus:ring-offset-1 focus:ring-blue-500"
@@ -477,21 +505,7 @@ function DashboardContent() {
                                                         {cls.status === 'active' && (
                                                             <button
                                                                 onClick={async () => {
-                                                                    const alreadyJoined = cls.attendance?.some((a) => a.uid === user.uid);
-                                                                    if (!alreadyJoined) {
-                                                                        try {
-                                                                            const classRef = doc(db, "classes", cls.id);
-                                                                            await updateDoc(classRef, {
-                                                                                attendance: arrayUnion({
-                                                                                    uid: user.uid,
-                                                                                    name: profile?.displayName || user.email,
-                                                                                    timestamp: new Date().toISOString()
-                                                                                })
-                                                                            });
-                                                                        } catch (err) {
-                                                                            console.error("Error logging attendance", err);
-                                                                        }
-                                                                    }
+                                                                    await recordAttendance(cls.id);
                                                                     router.push(`/class/${cls.roomId}?classId=${cls.id}&courseId=${selectedCourse?.id}`);
                                                                 }}
                                                                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition"
@@ -540,6 +554,16 @@ function DashboardContent() {
                                             </li>
                                         )}
                                     </ul>
+                                </div>
+
+                                {/* Academic Hub & Leaderboard */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <StudentAcademicHub 
+                                        courseId={selectedCourse.id} 
+                                        studentId={user.uid} 
+                                        studentName={profile?.displayName || user.email?.split('@')[0]} 
+                                    />
+                                    <Leaderboard courseId={selectedCourse.id} />
                                 </div>
 
                                 {/* Doubt Solving Widget */}

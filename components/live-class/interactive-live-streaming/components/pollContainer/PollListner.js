@@ -3,9 +3,17 @@ import { toast } from "react-toastify";
 import { useMeetingAppContext } from "@/components/live-class/MeetingAppContextDef";
 import { sideBarModes } from "@/components/live-class/utils/common";
 
+const safeParse = (msg) => {
+  if (typeof msg === "string") {
+    try { return JSON.parse(msg); } catch { return msg; }
+  }
+  return msg;
+};
+
 const PollListner = ({ pollId, setCreatedPolls }) => {
   usePubSub(`SUBMIT_A_POLL_${pollId}`, {
-    onMessageReceived: ({ message, senderId: participantId, timestamp }) => {
+    onMessageReceived: ({ message: raw, senderId: participantId, timestamp }) => {
+      const message = safeParse(raw);
       setCreatedPolls((s) =>
         s.map((_poll) =>
           pollId === _poll.id
@@ -22,7 +30,8 @@ const PollListner = ({ pollId, setCreatedPolls }) => {
     },
     onOldMessagesReceived: (messages) => {
       const sortedMappedMessages = messages.map(
-        ({ senderId: participantId, timestamp, message }) => {
+        ({ senderId: participantId, timestamp, message: raw }) => {
+          const message = safeParse(raw);
           const { optionId } = message;
 
           return {
@@ -58,15 +67,16 @@ const PollsListner = () => {
   } = useMeetingAppContext();
 
   usePubSub(`CREATE_POLL`, {
-    onMessageReceived: ({ message, timestamp }) => {
-      setCreatedPolls((s) => [
-        { ...message, createdAt: timestamp, submissions: [] },
-        ...s,
-      ]);
+    onMessageReceived: ({ message: raw, timestamp }) => {
+      const message = safeParse(raw);
+      setCreatedPolls((s) => {
+        if (s.some((p) => p.id === message.id)) return s;
+        return [{ ...message, createdAt: timestamp, submissions: [] }, ...s];
+      });
 
       try {
-        new Audio("/preview.mp3").play().catch(() => { });
-      } catch (err) { }
+        new Audio("/handraise.mp3").play().catch(() => { });
+      } catch { }
       toast("New Poll Asked 📊", {
         position: "bottom-left",
         autoClose: 4000,
@@ -80,36 +90,46 @@ const PollsListner = () => {
       setSideBarMode(sideBarModes.POLLS);
     },
     onOldMessagesReceived: (messages) => {
-      setCreatedPolls((s) => [
-        ...s,
-        ...messages
+      setCreatedPolls((s) => {
+        const existingIds = new Set(s.map((p) => p.id));
+        const newPolls = messages
           .sort((a, b) =>
             a.timestamp > b.timestamp ? -1 : a.timestamp < b.timestamp ? 1 : 0
           )
-          .map(({ message, timestamp }) => ({
-            ...message,
+          .map(({ message: raw, timestamp }) => ({
+            ...safeParse(raw),
             createdAt: timestamp,
             submissions: [],
-          })),
-      ]);
+          }))
+          .filter((p) => !existingIds.has(p.id));
+        return [...s, ...newPolls];
+      });
     },
   });
 
   usePubSub(`END_POLL`, {
-    onMessageReceived: ({ message }) => {
+    onMessageReceived: ({ message: raw }) => {
+      const message = safeParse(raw);
       setEndedPolls((s) => [...s, { pollId: message.pollId }]);
     },
     onOldMessagesReceived: (messages) => {
       setEndedPolls((s) => [
         ...s,
-        ...messages.map(({ message }) => ({ pollId: message.pollId })),
+        ...messages.map(({ message: raw }) => {
+          const message = safeParse(raw);
+          return { pollId: message.pollId };
+        }),
       ]);
     },
   });
 
   usePubSub(`DRAFT_A_POLL`, {
-    onMessageReceived: ({ message }) => {
-      setDraftPolls((s) => [...s, message]);
+    onMessageReceived: ({ message: raw }) => {
+      const message = safeParse(raw);
+      setDraftPolls((s) => {
+        if (s.some((p) => p.id === message.id)) return s;
+        return [...s, message];
+      });
     },
     onOldMessagesReceived: (messages) => {
       const sortedMessage = messages.sort((a, b) => {
@@ -121,15 +141,16 @@ const PollsListner = () => {
         }
         return 0;
       });
-      const newPolls = sortedMessage.map(({ message }) => {
-        return { ...message };
+      const newPolls = sortedMessage.map(({ message: raw }) => {
+        return { ...safeParse(raw) };
       });
       setDraftPolls(newPolls);
     },
   });
 
   usePubSub(`REMOVE_POLL_FROM_DRAFT`, {
-    onMessageReceived: ({ message }) => {
+    onMessageReceived: ({ message: raw }) => {
+      const message = safeParse(raw);
       setDraftPolls((s) => {
         return s.filter((_poll) => {
           if (message.pollId === _poll.id) {
@@ -144,7 +165,8 @@ const PollsListner = () => {
       setDraftPolls((s) =>
         s.filter(
           (_poll) =>
-            messages.findIndex(({ message }) => {
+            messages.findIndex(({ message: raw }) => {
+              const message = safeParse(raw);
               return message.pollId === _poll.id;
             }) === -1
         )

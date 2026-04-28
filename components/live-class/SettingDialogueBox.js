@@ -11,9 +11,12 @@ const AudioAnalyser = ({ audioTrack }) => {
 
   const [volume, setVolume] = useState(null);
 
+  const audioContextRef = useRef(null);
+
   const analyseAudio = (audioTrack) => {
     const audioStream = new MediaStream([audioTrack]);
     const audioContext = new AudioContext();
+    audioContextRef.current = audioContext;
 
     const audioSource = audioContext.createMediaStreamSource(audioStream);
     const analyser = audioContext.createAnalyser();
@@ -40,6 +43,10 @@ const AudioAnalyser = ({ audioTrack }) => {
 
   const stopAudioAnalyse = () => {
     clearInterval(audioAnalyserIntervalRef.current);
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
   };
 
   useEffect(() => {
@@ -50,6 +57,10 @@ const AudioAnalyser = ({ audioTrack }) => {
     } else {
       stopAudioAnalyse();
     }
+
+    return () => {
+      stopAudioAnalyse();
+    };
   }, [audioTrack]);
 
   return (
@@ -123,7 +134,8 @@ export default function SettingDialogueBox({
   setSelectedWebcam,
   changeWebcam,
   changeMic,
-  videoTrack,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  videoTrack: _videoTrack,
   audioTrack,
 }) {
   const [selectedMicLabel, setSelectedMicLabel] = useState(null);
@@ -140,6 +152,7 @@ export default function SettingDialogueBox({
     if (boxRef.current && boxRef.current.offsetHeight !== boxHeight) {
       setBoxHeight(boxRef.current.offsetHeight);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [windowWidth]);
 
   const handleSetting = (event, n) => {

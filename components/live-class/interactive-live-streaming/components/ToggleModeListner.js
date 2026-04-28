@@ -6,7 +6,7 @@ import {
   useParticipant,
   usePubSub,
 } from "@videosdk.live/react-sdk";
-import React, { Fragment, useEffect, useRef, useState } from "react";
+import React, { Fragment, useEffect, useRef } from "react";
 import ParticipantAddHostIcon from "@/components/live-class/icons/ParticipantTabPanel/ParticipantAddHostIcon";
 
 const ToggleModeContainer = ({ participantId, participantMode, onPromote, raisedHand }) => {
@@ -37,9 +37,10 @@ const ToggleModeContainer = ({ participantId, participantMode, onPromote, raised
               JSON.stringify({
                 mode: Constants.modes.SEND_AND_RECV,
                 skipConsent: true,
-              })
+              }),
+              { persist: false }
             );
-            publishLowerHand(participantId);
+            publishLowerHand(participantId, { persist: false });
           }}
           className="text-white text-[10px] bg-green-600 px-1.5 py-0.5 rounded hover:bg-green-700 font-semibold"
           title="Approve as Co-host"
@@ -49,7 +50,7 @@ const ToggleModeContainer = ({ participantId, participantMode, onPromote, raised
         <button
           onClick={(e) => {
             e.stopPropagation();
-            publishLowerHand(participantId);
+            publishLowerHand(participantId, { persist: false });
           }}
           className="text-white text-[10px] bg-red-600 px-1.5 py-0.5 rounded hover:bg-red-700 font-semibold"
           title="Reject Hand Raise"
@@ -105,7 +106,8 @@ const ToggleModeContainer = ({ participantId, participantMode, onPromote, raised
                   publish(
                     JSON.stringify({
                       mode: newMode,
-                    })
+                    }),
+                    { persist: false }
                   );
                   close();
                 }}

@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../../../lib/firebase";
 import { doc, updateDoc, arrayUnion, collection, query, where, getDocs } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { FileText, CheckCircle } from "lucide-react";
+import { FileText } from "lucide-react";
 
 export default function FinishClass() {
     const { classId } = useParams();
@@ -35,7 +35,7 @@ export default function FinishClass() {
                 }
             }
 
-            const updates: any = {
+            const updates: Record<string, unknown> = {
                 status: 'ended'
             };
 

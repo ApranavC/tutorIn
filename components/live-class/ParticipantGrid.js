@@ -11,9 +11,9 @@ const MemoizedParticipant = React.memo(
 
 function ParticipantGrid({ participantIds, isPresenting }) {
   const { sideBarMode } = useMeetingAppContext();
-  const isMobile = window.matchMedia(
-    "only screen and (max-width: 768px)"
-  ).matches;
+  const isMobile = typeof window !== "undefined"
+    ? window.matchMedia("only screen and (max-width: 768px)").matches
+    : false;
 
   const perRow =
     isMobile || isPresenting

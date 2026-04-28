@@ -6,11 +6,13 @@ const OutlineIconTextButton = ({
   onClick,
   isFocused,
   bgColor,
-  Icon,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  Icon: _Icon,
   focusBGColor,
   disabled,
   renderRightComponent,
-  fillcolor,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  fillcolor: _fillcolor,
   lottieOption,
   tooltipTitle,
   btnID,
@@ -40,31 +42,22 @@ const OutlineIconTextButton = ({
 
   const iconSize = 22 * (large ? 1 : 1);
 
-  const startBlinking = () => {
-    intervalRef.current = setInterval(() => {
-      setBlinkingState((s) => (s === 1 ? 0.4 : 1));
-    }, 600);
-  };
-
-  const stopBlinking = () => {
-    clearInterval(intervalRef.current);
-
-    setBlinkingState(1);
-  };
-
   useEffect(() => {
     if (isRequestProcessing) {
-      startBlinking();
+      intervalRef.current = setInterval(() => {
+        setBlinkingState((s) => (s === 1 ? 0.4 : 1));
+      }, 600);
     } else {
-      stopBlinking();
+      clearInterval(intervalRef.current);
     }
+
+    return () => {
+      clearInterval(intervalRef.current);
+    };
   }, [isRequestProcessing]);
 
-  useEffect(() => {
-    return () => {
-      stopBlinking();
-    };
-  }, []);
+  // Derive effective blink state outside the effect to avoid setState-in-effect
+  const effectiveBlinkState = isRequestProcessing ? blinkingState : 1;
 
   return (
     <>
@@ -84,7 +77,7 @@ const OutlineIconTextButton = ({
           style={{
             transition: "all 200ms",
             transitionTimingFunction: "ease-in-out",
-            opacity: blinkingState,
+            opacity: effectiveBlinkState,
           }}
           id={btnID}
           onMouseEnter={() => {

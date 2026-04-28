@@ -47,35 +47,27 @@ export const OutlinedButton = ({
     setTooltipShow(false);
   };
 
-  const intervalRef = useRef();
 
   const iconSize = 24 * (large ? 1.7 : 1);
 
-  const startBlinking = () => {
-    intervalRef.current = setInterval(() => {
-      setBlinkingState((s) => (s === 1 ? 0.4 : 1));
-    }, 600);
-  };
-
-  const stopBlinking = () => {
-    clearInterval(intervalRef.current);
-
-    setBlinkingState(1);
-  };
+  const blinkingIntervalRef = useRef();
 
   useEffect(() => {
     if (isRequestProcessing) {
-      startBlinking();
+      blinkingIntervalRef.current = setInterval(() => {
+        setBlinkingState((s) => (s === 1 ? 0.4 : 1));
+      }, 600);
     } else {
-      stopBlinking();
+      clearInterval(blinkingIntervalRef.current);
     }
+
+    return () => {
+      clearInterval(blinkingIntervalRef.current);
+    };
   }, [isRequestProcessing]);
 
-  useEffect(() => {
-    return () => {
-      stopBlinking();
-    };
-  }, []);
+  // Reset blink state when not processing (derived, not in effect)
+  const effectiveBlinkState = isRequestProcessing ? blinkingState : 1;
 
   return (
     <>
@@ -111,7 +103,7 @@ export const OutlinedButton = ({
           style={{
             transition: "all 200ms",
             transitionTimingFunction: "ease-in-out",
-            opacity: blinkingState,
+            opacity: effectiveBlinkState,
           }}
         >
           <button

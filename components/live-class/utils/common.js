@@ -2,7 +2,7 @@ export const json_verify = (s) => {
   try {
     JSON.parse(s);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -65,13 +65,10 @@ export const meetingLayoutTopics = {
 export function debounce(func, wait, immediate) {
   var timeout;
 
-  return function executedFunction() {
-    var context = this;
-    var args = arguments;
-
-    var later = function () {
+  return function executedFunction(...args) {
+    var later = () => {
       timeout = null;
-      if (!immediate) func.apply(context, args);
+      if (!immediate) func.apply(this, args);
     };
 
     var callNow = immediate && !timeout;
@@ -80,6 +77,6 @@ export function debounce(func, wait, immediate) {
 
     timeout = setTimeout(later, wait);
 
-    if (callNow) func.apply(context, args);
+    if (callNow) func.apply(this, args);
   };
 }

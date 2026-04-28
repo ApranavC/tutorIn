@@ -18,15 +18,20 @@ export const MeetingAppProvider = ({ children }) => {
   const [createdPolls, setCreatedPolls] = useState([]);
   const [endedPolls, setEndedPolls] = useState([]);
 
-  const polls = useMemo(
-    () =>
-      createdPolls.map((poll) => ({
+  const polls = useMemo(() => {
+    const seen = new Set();
+    return createdPolls
+      .filter((poll) => {
+        if (seen.has(poll.id)) return false;
+        seen.add(poll.id);
+        return true;
+      })
+      .map((poll) => ({
         ...poll,
         isActive:
           endedPolls.findIndex(({ pollId }) => pollId === poll.id) === -1,
-      })),
-    [createdPolls, endedPolls]
-  );
+      }));
+  }, [createdPolls, endedPolls]);
 
   const useRaisedHandParticipants = () => {
     const raisedHandsParticipantsRef = useRef();

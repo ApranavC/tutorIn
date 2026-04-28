@@ -1,21 +1,89 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // User Profiles:
-    // - Read: Authenticated users (needed for dashboard/class lists)
-    // - Write: Users can only edit their own profile
+    // - Read: Any authenticated user
+    // - Write: Only the owner
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Classes & Courses:
-    // - Read/Write: Allowed for any authenticated user.
-    // Note: This is an MVP production rule. For strict enterprise security, 
-    // you would refine this to "Teachers can create, Students can only update attendance".
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Courses:
+    // - Read: Any authenticated user
+    // - Create: Only admins (checked via users collection)
+    // - Update: Admins or the assigned teacher
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      allow update: if request.auth != null
+        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+            || resource.data.teacherId == request.auth.uid);
+    }
+
+    // Classes:
+    // - Read: Any authenticated user
+    // - Create: Teachers only
+    // - Update: Teacher who owns the class (any field),
+    //           or enrolled students (append one attendance entry with their own uid)
+    match /classes/{classId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "teacher";
+      allow update: if request.auth != null && (
+        resource.data.teacherId == request.auth.uid
+        || (
+          // Student attendance: only the `attendance` field may change,
+          // size must grow by exactly one, and the new (last) entry's uid
+          // must be the requester's. Prevents tampering with classmates'
+          // entries or impersonating another user.
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance'])
+          && request.resource.data.attendance.size() == resource.data.get('attendance', []).size() + 1
+          && request.resource.data.attendance[resource.data.get('attendance', []).size()].uid == request.auth.uid
+          && get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.studentIds.hasAny([request.auth.uid])
+        )
+      );
+    }
+
+    // Doubts:
+    // - Read: The student who asked or the assigned teacher
+    // - Create: Students only
+    // - Update: The assigned teacher (for replies)
+    match /doubts/{doubtId} {
+      allow read: if request.auth != null
+        && (resource.data.studentId == request.auth.uid || resource.data.teacherId == request.auth.uid);
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "student";
+      allow update: if request.auth != null
+        && resource.data.teacherId == request.auth.uid;
+    }
+
+    // Quizzes & Assignments:
+    // - Read: Any authenticated user
+    // - Write: Teachers only
+    match /quizzes/{quizId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "teacher";
+    }
+
+    match /assignments/{assignId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "teacher";
+    }
+
+    // Submissions:
+    // - Read: The student or any teacher
+    // - Create: Students only
+    match /submissions/{subId} {
+      allow read: if request.auth != null
+        && (resource.data.studentId == request.auth.uid
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "teacher");
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "student";
     }
   }
 }

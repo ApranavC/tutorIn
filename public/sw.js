@@ -1,7 +1,8 @@
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const CACHE_NAME = "tutorin-cache-v1";
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
     self.skipWaiting();
 });
 

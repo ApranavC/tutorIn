@@ -34,7 +34,7 @@ export const createRoom = async (tokenPromise: string | Promise<string>): Promis
     }
 };
 
-export const fetchRecordings = async (roomId: string, tokenPromise: string | Promise<string>): Promise<any[]> => {
+export const fetchRecordings = async (roomId: string, tokenPromise: string | Promise<string>): Promise<Record<string, unknown>[]> => {
     try {
         const token = await tokenPromise;
         const url = `https://api.videosdk.live/v2/recordings?meetingId=${roomId}`;
@@ -44,7 +44,7 @@ export const fetchRecordings = async (roomId: string, tokenPromise: string | Pro
             },
         });
         return response.data.data || []; // Ensure array
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
             console.error("Error fetching recordings:", error.response?.data || error.message);
         } else {

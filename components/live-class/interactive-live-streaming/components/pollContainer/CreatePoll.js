@@ -69,7 +69,7 @@ const CreatePollPart = ({
             <div>
               {options.map((item) => {
                 return (
-                  <div className="flex items-center mb-4">
+                  <div className="flex items-center mb-4" key={item.optionId}>
                     {isMarkAsCorrectChecked && item.option.length !== 0 && (
                       <Input
                         type="checkbox"
@@ -106,7 +106,7 @@ const CreatePollPart = ({
                             : "bg-customGray-900"
                           } text-white focus:ring-0 rounded-l`}
                         placeholder="Add your options"
-                        autocomplete="off"
+                        autoComplete="off"
                         value={item.option}
                         onBlur={_handleKeyDown}
                         onChange={(e) => {
@@ -212,8 +212,8 @@ const CreatePollPart = ({
               <input
                 type={"text"}
                 placeholder="Add your options"
-                autocomplete="off"
-                onChange={(e) => { }}
+                autoComplete="off"
+                onChange={() => { }}
                 onFocus={(e) => {
                   _handleKeyDown(e);
                   focusCreateOption();
@@ -239,7 +239,7 @@ const CreatePollPart = ({
               <Label check>
                 <Input
                   type="checkbox"
-                  onClick={(e) => {
+                  onClick={() => {
                     setIsMarkAsCorrectChecked((s) => !s);
                   }}
                   className="bg-transparent h-5 w-5 border-2 border-gray-300 focus:outline-none focus:border-gray-300 focus:ring-0"
@@ -260,7 +260,7 @@ const CreatePollPart = ({
                   <Label check>
                     <Input
                       type="checkbox"
-                      onClick={(e) => {
+                      onClick={() => {
                         setIsSetTimerChecked((s) => !s);
                       }}
                       className="bg-transparent h-5 w-5 border-2 border-gray-300 focus:outline-none focus:border-gray-300 focus:ring-0"
@@ -278,7 +278,7 @@ const CreatePollPart = ({
                   >
                     {pollTimerArr.map((item) => {
                       return (
-                        <option className="cursor-pointer" value={item.value}>
+                        <option className="cursor-pointer" value={item.value} key={item.value}>
                           {item.Label}
                         </option>
                       );
@@ -399,7 +399,7 @@ const PollButtonPart = ({
 
           if (isValid) {
             publishDraftPoll(
-              {
+              JSON.stringify({
                 id: uuid(),
                 question: question.trim(),
                 options: options.map((option) => ({
@@ -410,7 +410,7 @@ const PollButtonPart = ({
                 hasCorrectAnswer: isMarkAsCorrectChecked ? true : false,
                 hasTimer: isSetTimerChecked ? true : false,
                 isActive: false,
-              },
+              }),
               {
                 persist: true,
               }
@@ -434,7 +434,7 @@ const PollButtonPart = ({
 
           if (isValid) {
             publishCreatePoll(
-              {
+              JSON.stringify({
                 id: uuid(),
                 question: question.trim(),
                 options: options.map((option) => ({
@@ -446,7 +446,7 @@ const PollButtonPart = ({
                 hasTimer: isSetTimerChecked ? true : false,
                 isActive: true,
                 index: polls.length + 1,
-              },
+              }),
               { persist: true }
             );
             setSideBarMode(sideBarModes.POLLS);
@@ -467,7 +467,7 @@ const CreatePoll = ({ panelHeight }) => {
   const [optionErr, setOptionErr] = useState(false);
   const [option, setOption] = useState({
     optionId: uuid(),
-    option: null,
+    option: "",
     isCorrect: false,
   });
   const [options, setOptions] = useState([]);

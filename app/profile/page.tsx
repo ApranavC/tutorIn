@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
-import { db, auth } from "../../lib/firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { db } from "../../lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import toast from "react-hot-toast";
 import { ArrowLeft, Save, User } from "lucide-react";

@@ -89,18 +89,18 @@ const SubmitPollListItem = ({ poll }) => {
     };
   }, [poll, localParticipantId]);
 
-  const checkTimeOver = ({ timeout, createdAt }) =>
-    !(new Date(createdAt).getTime() + timeout * 1000 > new Date().getTime());
+  const checkTimeOver = ({ timeout: t, createdAt: c }) =>
+    !(new Date(c).getTime() + t * 1000 > new Date().getTime());
 
-  const updateTimer = ({ timeout, createdAt }) => {
-    if (checkTimeOver({ timeout, createdAt })) {
+  const updateTimerFn = ({ timeout: t, createdAt: c }) => {
+    if (checkTimeOver({ timeout: t, createdAt: c })) {
       setTimeLeft(0);
       setIsTimerPollActive(false);
       clearInterval(timerIntervalRef.current);
     } else {
       setTimeLeft(
-        (new Date(createdAt).getTime() +
-          timeout * 1000 -
+        (new Date(c).getTime() +
+          t * 1000 -
           new Date().getTime()) /
           1000
       );
@@ -108,13 +108,16 @@ const SubmitPollListItem = ({ poll }) => {
     }
   };
 
+  const updateTimerRef = useRef(updateTimerFn);
+  useEffect(() => { updateTimerRef.current = updateTimerFn; });
+
   useEffect(() => {
     if (hasTimer) {
-      updateTimer({ timeout, createdAt });
+      updateTimerRef.current({ timeout, createdAt });
 
       if (!checkTimeOver({ timeout, createdAt })) {
         timerIntervalRef.current = setInterval(() => {
-          updateTimer({ timeout, createdAt });
+          updateTimerRef.current({ timeout, createdAt });
         }, 1000);
       }
     }
@@ -122,7 +125,7 @@ const SubmitPollListItem = ({ poll }) => {
     return () => {
       clearInterval(timerIntervalRef.current);
     };
-  }, []);
+  }, [hasTimer, timeout, createdAt]);
 
   const TooltipIconRender = ({ Icon, tooltipTitle }) => {
     const [tooltipShow, setTooltipShow] = useState(false);
@@ -202,7 +205,7 @@ const SubmitPollListItem = ({ poll }) => {
                   const isCorrectOption = option.isCorrect;
 
                   return (
-                    <div className="flex mb-3">
+                    <div key={option.optionId} className="flex mb-3">
                       <div className="mt-0 w-full">
                         <div className="flex items-center">
                           <p className="text-[15px] text-white font-normal">
@@ -260,12 +263,12 @@ const SubmitPollListItem = ({ poll }) => {
                 })
               : poll?.options.map((option) => {
                   return (
-                    <div className="flex mb-3 items-center">
+                    <div key={option.optionId} className="flex mb-3 items-center">
                       <Input
                         type="checkbox"
                         onClick={() => {
                           publish(
-                            { optionId: option.optionId },
+                            JSON.stringify({ optionId: option.optionId }),
                             { persist: true }
                           );
                         }}
